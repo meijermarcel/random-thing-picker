@@ -3,9 +3,10 @@ import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 interface PickButtonProps {
   onPick: () => void;
   disabled: boolean;
+  label?: string;
 }
 
-export function PickButton({ onPick, disabled }: PickButtonProps) {
+export function PickButton({ onPick, disabled, label = 'Pick Random' }: PickButtonProps) {
   return (
     <TouchableOpacity
       style={[styles.button, disabled && styles.disabled]}
@@ -13,7 +14,7 @@ export function PickButton({ onPick, disabled }: PickButtonProps) {
       disabled={disabled}
     >
       <Text style={[styles.text, disabled && styles.disabledText]}>
-        Pick Random
+        {label}
       </Text>
     </TouchableOpacity>
   );
