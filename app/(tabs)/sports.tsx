@@ -1,16 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
+import { router } from 'expo-router';
 import { Game, Pick, SportFilter as SportFilterType } from '../../types/sports';
 import { fetchGames } from '../../services/espn';
 import { SportFilter } from '../../components/SportFilter';
 import { GameRow } from '../../components/GameRow';
 import { PickButton } from '../../components/PickButton';
-import { SportsPicksModal } from '../../components/SportsPicksModal';
 
 export default function Sports() {
   const [games, setGames] = useState<Game[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [picks, setPicks] = useState<Pick[] | null>(null);
   const [filter, setFilter] = useState<SportFilterType>('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -46,15 +45,38 @@ export default function Sports() {
 
   const handlePick = () => {
     const selectedGames = games.filter((g) => selectedIds.has(g.id));
+    const pickTypes: Array<'home' | 'away' | 'home_cover' | 'away_cover' | 'over' | 'under'> = [
+      'home', 'away', 'home_cover', 'away_cover', 'over', 'under'
+    ];
     const newPicks = selectedGames.map((game) => {
-      const pickHome = Math.random() < 0.5;
-      return {
-        game,
-        pickedTeam: pickHome ? game.homeTeam : game.awayTeam,
-        opponent: pickHome ? game.awayTeam : game.homeTeam,
-      };
+      const pickType = pickTypes[Math.floor(Math.random() * pickTypes.length)];
+      let label: string;
+      switch (pickType) {
+        case 'home':
+          label = `${game.homeTeam} ML`;
+          break;
+        case 'away':
+          label = `${game.awayTeam} ML`;
+          break;
+        case 'home_cover':
+          label = `${game.homeTeam} to cover`;
+          break;
+        case 'away_cover':
+          label = `${game.awayTeam} to cover`;
+          break;
+        case 'over':
+          label = 'Over';
+          break;
+        case 'under':
+          label = 'Under';
+          break;
+      }
+      return { game, pickType, label };
     });
-    setPicks(newPicks);
+    router.push({
+      pathname: '/betslip',
+      params: { picks: JSON.stringify(newPicks) },
+    });
   };
 
   const selectedCount = selectedIds.size;
@@ -94,8 +116,6 @@ export default function Sports() {
         disabled={selectedCount === 0}
         label={selectedCount > 0 ? `Pick Sides (${selectedCount})` : 'Pick Sides'}
       />
-
-      <SportsPicksModal picks={picks} onClose={() => setPicks(null)} />
     </SafeAreaView>
   );
 }

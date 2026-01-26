@@ -24,8 +24,10 @@ export function SportsPicksModal({ picks, onClose }: SportsPicksModalProps) {
             keyExtractor={(item) => item.game.id}
             renderItem={({ item }) => (
               <View style={styles.pickRow}>
-                <Text style={styles.pickedTeam}>{item.pickedTeam}</Text>
-                <Text style={styles.opponent}>vs {item.opponent}</Text>
+                <Text style={styles.matchup}>
+                  {item.game.awayTeam} @ {item.game.homeTeam}
+                </Text>
+                <Text style={styles.pickLabel}>{item.label}</Text>
                 <Text style={styles.league}>{item.game.league}</Text>
               </View>
             )}
@@ -68,14 +70,14 @@ const styles = StyleSheet.create({
   pickRow: {
     paddingVertical: 12,
   },
-  pickedTeam: {
+  matchup: {
+    fontSize: 14,
+    color: '#666',
+  },
+  pickLabel: {
     fontSize: 18,
     fontWeight: '600',
-  },
-  opponent: {
-    fontSize: 15,
-    color: '#666',
-    marginTop: 2,
+    marginTop: 4,
   },
   league: {
     fontSize: 13,
