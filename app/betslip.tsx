@@ -1,10 +1,24 @@
-import { View, Text, StyleSheet, SafeAreaView, FlatList, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, FlatList, TouchableOpacity, Image, Share } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Pick } from '../types/sports';
 
 export default function BetSlip() {
   const { picks: picksParam } = useLocalSearchParams<{ picks: string }>();
   const picks: Pick[] = picksParam ? JSON.parse(picksParam) : [];
+
+  const handleShare = async () => {
+    const pickLines = picks.map((pick) =>
+      `${pick.game.awayTeam} @ ${pick.game.homeTeam}\n→ ${pick.label}`
+    );
+    const parlayText = picks.length > 1 ? `${picks.length}-leg parlay` : 'Straight bet';
+    const message = `My Picks (${parlayText}):\n\n${pickLines.join('\n\n')}`;
+
+    try {
+      await Share.share({ message });
+    } catch (error) {
+      // User cancelled or share failed
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -54,9 +68,14 @@ export default function BetSlip() {
       />
 
       <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.button} onPress={() => router.replace('/(tabs)/sports')}>
-          <Text style={styles.buttonText}>Done</Text>
-        </TouchableOpacity>
+        <View style={styles.buttonRow}>
+          <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
+            <Text style={styles.shareButtonText}>Share</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.button} onPress={() => router.replace('/(tabs)/sports')}>
+            <Text style={styles.buttonText}>Done</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -174,7 +193,26 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#eee',
   },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  shareButton: {
+    flex: 1,
+    backgroundColor: '#fff',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#007AFF',
+  },
+  shareButtonText: {
+    color: '#007AFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
   button: {
+    flex: 1,
     backgroundColor: '#007AFF',
     paddingVertical: 12,
     borderRadius: 8,
