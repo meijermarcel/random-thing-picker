@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, Keyboard, TouchableWithoutFeedback, TouchableOpacity } from 'react-native';
-import { AddItemInput } from '../components/AddItemInput';
-import { ItemList } from '../components/ItemList';
-import { PickButton } from '../components/PickButton';
-import { ResultModal } from '../components/ResultModal';
+import { AddItemInput } from '../../components/AddItemInput';
+import { ItemList } from '../../components/ItemList';
+import { PickButton } from '../../components/PickButton';
+import { ResultModal } from '../../components/ResultModal';
 
 export default function Index() {
   const [items, setItems] = useState<string[]>([]);
