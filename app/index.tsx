@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, Keyboard, TouchableWithoutFeedback } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, Keyboard, TouchableWithoutFeedback, TouchableOpacity } from 'react-native';
 import { AddItemInput } from '../components/AddItemInput';
 import { ItemList } from '../components/ItemList';
 import { PickButton } from '../components/PickButton';
@@ -26,18 +26,26 @@ export default function Index() {
     setSelectedItem(null);
   };
 
+  const handleReset = () => {
+    setItems([]);
+  };
+
   const canPick = items.length >= 2;
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <SafeAreaView style={styles.container}>
-        <Text style={styles.header}>Random Picker</Text>
         <AddItemInput onAdd={handleAdd} />
         <View style={styles.listContainer}>
           <ItemList items={items} onDelete={handleDelete} />
         </View>
         {!canPick && items.length === 1 && (
           <Text style={styles.hint}>Add one more item to pick</Text>
+        )}
+        {items.length > 0 && (
+          <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
+            <Text style={styles.resetText}>Reset</Text>
+          </TouchableOpacity>
         )}
         <PickButton onPick={handlePick} disabled={!canPick} />
         <ResultModal item={selectedItem} onClose={handleCloseModal} />
@@ -51,12 +59,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f8f8',
   },
-  header: {
-    fontSize: 28,
-    fontWeight: '700',
-    textAlign: 'center',
-    paddingVertical: 16,
-  },
   listContainer: {
     flex: 1,
   },
@@ -65,5 +67,14 @@ const styles = StyleSheet.create({
     color: '#888',
     fontSize: 14,
     marginBottom: 8,
+  },
+  resetButton: {
+    alignSelf: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  resetText: {
+    color: '#ff3b30',
+    fontSize: 16,
   },
 });
