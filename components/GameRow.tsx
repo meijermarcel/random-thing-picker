@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Game } from '../types/sports';
 
@@ -37,9 +37,14 @@ export function GameRow({ game, selected, onToggle }: GameRowProps) {
         />
       </View>
       <View style={styles.content}>
-        <Text style={styles.teams}>
-          {game.awayTeam} @ {game.homeTeam}
-        </Text>
+        <View style={styles.teamRow}>
+          {game.awayLogo && <Image source={{ uri: game.awayLogo }} style={styles.logo} />}
+          <Text style={styles.teamName}>{game.awayTeam}</Text>
+        </View>
+        <View style={styles.teamRow}>
+          {game.homeLogo && <Image source={{ uri: game.homeLogo }} style={styles.logo} />}
+          <Text style={styles.teamName}>{game.homeTeam}</Text>
+        </View>
         <Text style={styles.meta}>
           {game.league} · {formatGameTime(game.startTime)}
         </Text>
@@ -65,13 +70,23 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
-  teams: {
-    fontSize: 16,
-    fontWeight: '500',
+  teamRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 4,
   },
+  logo: {
+    width: 20,
+    height: 20,
+    marginRight: 8,
+  },
+  teamName: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
   meta: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#888',
+    marginTop: 2,
   },
 });

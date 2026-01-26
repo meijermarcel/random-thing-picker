@@ -9,7 +9,7 @@ import { PickButton } from '../../components/PickButton';
 
 export default function Sports() {
   const [games, setGames] = useState<Game[]>([]);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedGames, setSelectedGames] = useState<Map<string, Game>>(new Map());
   const [filter, setFilter] = useState<SportFilterType>('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -17,7 +17,6 @@ export default function Sports() {
   const loadGames = useCallback(async () => {
     const data = await fetchGames(filter);
     setGames(data);
-    setSelectedIds(new Set());
   }, [filter]);
 
   useEffect(() => {
@@ -31,24 +30,24 @@ export default function Sports() {
     setRefreshing(false);
   };
 
-  const toggleGame = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
+  const toggleGame = (game: Game) => {
+    setSelectedGames((prev) => {
+      const next = new Map(prev);
+      if (next.has(game.id)) {
+        next.delete(game.id);
       } else {
-        next.add(id);
+        next.set(game.id, game);
       }
       return next;
     });
   };
 
   const handlePick = () => {
-    const selectedGames = games.filter((g) => selectedIds.has(g.id));
+    const gamesToPick = Array.from(selectedGames.values());
     const pickTypes: Array<'home' | 'away' | 'home_cover' | 'away_cover' | 'over' | 'under'> = [
       'home', 'away', 'home_cover', 'away_cover', 'over', 'under'
     ];
-    const newPicks = selectedGames.map((game) => {
+    const newPicks = gamesToPick.map((game) => {
       const pickType = pickTypes[Math.floor(Math.random() * pickTypes.length)];
       let label: string;
       switch (pickType) {
@@ -79,7 +78,7 @@ export default function Sports() {
     });
   };
 
-  const selectedCount = selectedIds.size;
+  const selectedCount = selectedGames.size;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -100,8 +99,8 @@ export default function Sports() {
           renderItem={({ item }) => (
             <GameRow
               game={item}
-              selected={selectedIds.has(item.id)}
-              onToggle={() => toggleGame(item.id)}
+              selected={selectedGames.has(item.id)}
+              onToggle={() => toggleGame(item)}
             />
           )}
           ItemSeparatorComponent={() => <View style={styles.separator} />}

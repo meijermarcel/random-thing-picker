@@ -2,6 +2,8 @@ export interface Game {
   id: string;
   homeTeam: string;
   awayTeam: string;
+  homeLogo?: string;
+  awayLogo?: string;
   startTime: Date;
   league: string;
   leagueAbbr: string;

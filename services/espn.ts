@@ -18,20 +18,27 @@ async function fetchLeagueGames(sport: string, league: string, leagueName: strin
     const data = await response.json();
     const events = data.events || [];
 
-    return events.map((event: any) => {
-      const competition = event.competitions?.[0];
-      const homeTeam = competition?.competitors?.find((c: any) => c.homeAway === 'home');
-      const awayTeam = competition?.competitors?.find((c: any) => c.homeAway === 'away');
+    const now = new Date();
+    const maxDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
 
-      return {
-        id: event.id,
-        homeTeam: homeTeam?.team?.displayName || 'TBD',
-        awayTeam: awayTeam?.team?.displayName || 'TBD',
-        startTime: new Date(event.date),
-        league: leagueName,
-        leagueAbbr: league.toUpperCase(),
-      };
-    });
+    return events
+      .map((event: any) => {
+        const competition = event.competitions?.[0];
+        const homeTeam = competition?.competitors?.find((c: any) => c.homeAway === 'home');
+        const awayTeam = competition?.competitors?.find((c: any) => c.homeAway === 'away');
+
+        return {
+          id: event.id,
+          homeTeam: homeTeam?.team?.displayName || 'TBD',
+          awayTeam: awayTeam?.team?.displayName || 'TBD',
+          homeLogo: homeTeam?.team?.logo,
+          awayLogo: awayTeam?.team?.logo,
+          startTime: new Date(event.date),
+          league: leagueName,
+          leagueAbbr: league.toUpperCase(),
+        };
+      })
+      .filter((game: Game) => game.startTime <= maxDate);
   } catch {
     return [];
   }

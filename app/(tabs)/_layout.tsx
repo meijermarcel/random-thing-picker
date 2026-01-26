@@ -12,7 +12,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Random Picker',
+          title: 'RTP',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="dice" size={size} color={color} />
           ),
@@ -21,7 +21,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="sports"
         options={{
-          title: 'Sports Picks',
+          title: 'Sports',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="football" size={size} color={color} />
           ),

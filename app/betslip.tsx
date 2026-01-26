@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, SafeAreaView, FlatList, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, FlatList, TouchableOpacity, Image } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Pick } from '../types/sports';
 
@@ -19,33 +19,42 @@ export default function BetSlip() {
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
           <View style={styles.pickCard}>
-            <View style={styles.pickHeader}>
+            <View style={styles.cardHeader}>
               <Text style={styles.league}>{item.game.leagueAbbr}</Text>
+              <View style={styles.pickBadge}>
+                <Text style={styles.pickLabel}>{item.label}</Text>
+              </View>
             </View>
-            <Text style={styles.matchup}>
-              {item.game.awayTeam} @ {item.game.homeTeam}
-            </Text>
-            <View style={styles.pickBadge}>
-              <Text style={styles.pickLabel}>{item.label}</Text>
+            <View style={styles.teamRow}>
+              {item.game.awayLogo && (
+                <Image source={{ uri: item.game.awayLogo }} style={styles.logo} />
+              )}
+              <Text style={styles.teamName}>{item.game.awayTeam}</Text>
+            </View>
+            <View style={styles.teamRow}>
+              {item.game.homeLogo && (
+                <Image source={{ uri: item.game.homeLogo }} style={styles.logo} />
+              )}
+              <Text style={styles.teamName}>{item.game.homeTeam}</Text>
             </View>
           </View>
         )}
         ListFooterComponent={() => (
           <View style={styles.footer}>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Total Picks</Text>
+              <Text style={styles.summaryLabel}>Total</Text>
               <Text style={styles.summaryValue}>{picks.length}</Text>
             </View>
             <View style={styles.divider} />
             <Text style={styles.parlayNote}>
-              {picks.length > 1 ? `${picks.length}-leg parlay` : 'Straight bet'}
+              {picks.length > 1 ? `${picks.length}-leg parlay` : 'Straight'}
             </Text>
           </View>
         )}
       />
 
       <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.button} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.button} onPress={() => router.replace('/(tabs)/sports')}>
           <Text style={styles.buttonText}>Done</Text>
         </TouchableOpacity>
       </View>
@@ -56,105 +65,124 @@ export default function BetSlip() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#f8f8f8',
   },
   header: {
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2d2d44',
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#888',
-    marginTop: 4,
-  },
-  listContent: {
-    padding: 16,
-  },
-  pickCard: {
-    backgroundColor: '#2d2d44',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-  },
-  pickHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#000',
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    color: '#888',
+  },
+  listContent: {
+    padding: 12,
+  },
+  pickCard: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     marginBottom: 8,
   },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
   league: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
     color: '#888',
     textTransform: 'uppercase',
   },
-  matchup: {
-    fontSize: 16,
-    color: '#fff',
-    marginBottom: 12,
+  teamRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  logo: {
+    width: 24,
+    height: 24,
+    marginRight: 10,
+  },
+  teamName: {
+    fontSize: 15,
+    color: '#000',
+    fontWeight: '500',
   },
   pickBadge: {
-    backgroundColor: '#4ade80',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 5,
   },
   pickLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1a1a2e',
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#fff',
   },
   footer: {
-    backgroundColor: '#2d2d44',
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 8,
-  },
-  summaryRow: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 4,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   summaryLabel: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#888',
   },
   summaryValue: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '700',
-    color: '#fff',
+    color: '#000',
   },
   divider: {
-    height: 1,
-    backgroundColor: '#3d3d54',
-    marginVertical: 12,
+    width: 1,
+    height: 16,
+    backgroundColor: '#eee',
   },
   parlayNote: {
-    fontSize: 14,
-    color: '#4ade80',
+    fontSize: 13,
+    color: '#007AFF',
     fontWeight: '600',
-    textAlign: 'center',
   },
   buttonContainer: {
-    padding: 16,
+    padding: 12,
+    backgroundColor: '#fff',
     borderTopWidth: 1,
-    borderTopColor: '#2d2d44',
+    borderTopColor: '#eee',
   },
   button: {
-    backgroundColor: '#4ade80',
-    paddingVertical: 16,
-    borderRadius: 12,
+    backgroundColor: '#007AFF',
+    paddingVertical: 12,
+    borderRadius: 8,
     alignItems: 'center',
   },
   buttonText: {
-    color: '#1a1a2e',
-    fontSize: 18,
+    color: '#fff',
+    fontSize: 16,
     fontWeight: '700',
   },
 });
