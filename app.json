@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "random-picker",
-    "slug": "random-picker",
+    "name": "Random Thing Picker",
+    "slug": "random-thing-picker",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "scheme": "random-picker",
+    "scheme": "random-thing-picker",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -14,7 +14,11 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.twelveminusfive.rtp",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -26,6 +30,11 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "1e5b1d53-d8f3-4bb8-8fd6-9926fe0552d4"
+      }
     }
   }
 }
