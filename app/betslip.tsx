@@ -1,17 +1,53 @@
 import { View, Text, StyleSheet, SafeAreaView, FlatList, TouchableOpacity, Image, Share } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
-import { Pick } from '../types/sports';
+import { Ionicons } from '@expo/vector-icons';
+import { Pick, Confidence } from '../types/sports';
+
+// Helper to get confidence color
+function getConfidenceColor(confidence: Confidence): string {
+  switch (confidence) {
+    case 'high':
+      return '#34C759';
+    case 'medium':
+      return '#FF9500';
+    case 'low':
+      return '#FF3B30';
+  }
+}
+
+// Helper to get confidence icon
+function getConfidenceIcon(confidence: Confidence): string {
+  switch (confidence) {
+    case 'high':
+      return 'trending-up';
+    case 'medium':
+      return 'remove';
+    case 'low':
+      return 'trending-down';
+  }
+}
 
 export default function BetSlip() {
   const { picks: picksParam } = useLocalSearchParams<{ picks: string }>();
   const picks: Pick[] = picksParam ? JSON.parse(picksParam) : [];
+  
+  // Check if any picks have analysis
+  const hasAnalysis = picks.some(pick => pick.analysis);
 
   const handleShare = async () => {
-    const pickLines = picks.map((pick) =>
-      `${pick.game.awayTeam} @ ${pick.game.homeTeam}\n→ ${pick.label}`
-    );
+    const pickLines = picks.map((pick) => {
+      let line = `${pick.game.awayTeam} @ ${pick.game.homeTeam}\n→ ${pick.label}`;
+      if (pick.analysis) {
+        line += ` (${pick.analysis.confidence} confidence)`;
+        if (pick.analysis.reasoning.length > 0) {
+          line += `\n  ${pick.analysis.reasoning.join('\n  ')}`;
+        }
+      }
+      return line;
+    });
     const parlayText = picks.length > 1 ? `${picks.length}-leg parlay` : 'Straight bet';
-    const message = `My Picks (${parlayText}):\n\n${pickLines.join('\n\n')}`;
+    const analysisNote = hasAnalysis ? ' - Analyzed' : '';
+    const message = `My Picks (${parlayText}${analysisNote}):\n\n${pickLines.join('\n\n')}`;
 
     try {
       await Share.share({ message });
@@ -51,6 +87,30 @@ export default function BetSlip() {
               )}
               <Text style={styles.teamName}>{item.game.homeTeam}</Text>
             </View>
+            
+            {item.analysis && (
+              <View style={styles.analysisSection}>
+                <View style={styles.confidenceRow}>
+                  <Ionicons 
+                    name={getConfidenceIcon(item.analysis.confidence) as any}
+                    size={16}
+                    color={getConfidenceColor(item.analysis.confidence)}
+                  />
+                  <Text style={[
+                    styles.confidenceText,
+                    { color: getConfidenceColor(item.analysis.confidence) }
+                  ]}>
+                    {item.analysis.confidence.charAt(0).toUpperCase() + item.analysis.confidence.slice(1)} Confidence
+                  </Text>
+                </View>
+                {item.analysis.reasoning.map((reason, index) => (
+                  <View key={index} style={styles.reasonRow}>
+                    <Text style={styles.reasonBullet}>•</Text>
+                    <Text style={styles.reasonText}>{reason}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
         )}
         ListFooterComponent={() => (
@@ -60,9 +120,17 @@ export default function BetSlip() {
               <Text style={styles.summaryValue}>{picks.length}</Text>
             </View>
             <View style={styles.divider} />
-            <Text style={styles.parlayNote}>
-              {picks.length > 1 ? `${picks.length}-leg parlay` : 'Straight'}
-            </Text>
+            <View style={styles.footerRight}>
+              <Text style={styles.parlayNote}>
+                {picks.length > 1 ? `${picks.length}-leg parlay` : 'Straight'}
+              </Text>
+              {hasAnalysis && (
+                <View style={styles.analyzedBadge}>
+                  <Ionicons name="analytics" size={12} color="#007AFF" />
+                  <Text style={styles.analyzedText}>Analyzed</Text>
+                </View>
+              )}
+            </View>
           </View>
         )}
       />
@@ -153,6 +221,37 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#fff',
   },
+  analysisSection: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  confidenceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  confidenceText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  reasonRow: {
+    flexDirection: 'row',
+    paddingLeft: 4,
+    marginBottom: 2,
+  },
+  reasonBullet: {
+    fontSize: 12,
+    color: '#888',
+    marginRight: 6,
+  },
+  reasonText: {
+    fontSize: 12,
+    color: '#666',
+    flex: 1,
+  },
   footer: {
     backgroundColor: '#fff',
     borderRadius: 8,
@@ -182,8 +281,27 @@ const styles = StyleSheet.create({
     height: 16,
     backgroundColor: '#eee',
   },
+  footerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   parlayNote: {
     fontSize: 13,
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+  analyzedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#E8F0FE',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  analyzedText: {
+    fontSize: 11,
     color: '#007AFF',
     fontWeight: '600',
   },

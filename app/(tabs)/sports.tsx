@@ -1,18 +1,22 @@
 import { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
 import { router } from 'expo-router';
-import { Game, Pick, SportFilter as SportFilterType } from '../../types/sports';
+import { Game, Pick, SportFilter as SportFilterType, PickMode, PickType } from '../../types/sports';
 import { fetchGames } from '../../services/espn';
+import { analyzeGames, getAnalyzedPickLabel } from '../../services/analysis';
 import { SportFilter } from '../../components/SportFilter';
 import { GameRow } from '../../components/GameRow';
 import { PickButton } from '../../components/PickButton';
+import { PickModeSelector } from '../../components/PickModeSelector';
 
 export default function Sports() {
   const [games, setGames] = useState<Game[]>([]);
   const [selectedGames, setSelectedGames] = useState<Map<string, Game>>(new Map());
   const [filter, setFilter] = useState<SportFilterType>('all');
+  const [pickMode, setPickMode] = useState<PickMode>('random');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
 
   const loadGames = useCallback(async () => {
     const data = await fetchGames(filter);
@@ -42,12 +46,12 @@ export default function Sports() {
     });
   };
 
-  const handlePick = () => {
+  const handleRandomPick = () => {
     const gamesToPick = Array.from(selectedGames.values());
-    const pickTypes: Array<'home' | 'away' | 'home_cover' | 'away_cover' | 'over' | 'under'> = [
+    const pickTypes: Array<PickType> = [
       'home', 'away', 'home_cover', 'away_cover', 'over', 'under'
     ];
-    const newPicks = gamesToPick.map((game) => {
+    const newPicks: Pick[] = gamesToPick.map((game) => {
       const pickType = pickTypes[Math.floor(Math.random() * pickTypes.length)];
       let label: string;
       switch (pickType) {
@@ -78,11 +82,77 @@ export default function Sports() {
     });
   };
 
+  const handleAnalyzedPick = async () => {
+    const gamesToPick = Array.from(selectedGames.values());
+    setAnalyzing(true);
+    
+    try {
+      const analyses = await analyzeGames(gamesToPick);
+      
+      const newPicks: Pick[] = gamesToPick.map((game) => {
+        const analysis = analyses.get(game.id);
+        if (!analysis) {
+          // Fallback to random if analysis fails
+          const pickType: PickType = Math.random() < 0.5 ? 'home' : 'away';
+          return {
+            game,
+            pickType,
+            label: pickType === 'home' ? `${game.homeTeam} ML` : `${game.awayTeam} ML`,
+          };
+        }
+        
+        return {
+          game,
+          pickType: analysis.pickType,
+          label: getAnalyzedPickLabel(game, analysis),
+          analysis,
+        };
+      });
+      
+      router.push({
+        pathname: '/betslip',
+        params: { picks: JSON.stringify(newPicks) },
+      });
+    } catch (error) {
+      console.error('Analysis failed:', error);
+      // Fallback to random on error
+      handleRandomPick();
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const handlePick = () => {
+    if (pickMode === 'analyzed') {
+      handleAnalyzedPick();
+    } else {
+      handleRandomPick();
+    }
+  };
+
   const selectedCount = selectedGames.size;
+  const isPickDisabled = selectedCount === 0 || analyzing;
+
+  const getButtonLabel = () => {
+    if (analyzing) {
+      return 'Analyzing...';
+    }
+    if (selectedCount === 0) {
+      return pickMode === 'analyzed' ? 'Analyze Games' : 'Pick Sides';
+    }
+    return pickMode === 'analyzed' 
+      ? `Analyze Games (${selectedCount})`
+      : `Pick Sides (${selectedCount})`;
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <SportFilter selected={filter} onSelect={setFilter} />
+      <PickModeSelector 
+        selected={pickMode} 
+        onSelect={setPickMode}
+        disabled={analyzing}
+      />
 
       {loading ? (
         <View style={styles.center}>
@@ -112,8 +182,8 @@ export default function Sports() {
 
       <PickButton
         onPick={handlePick}
-        disabled={selectedCount === 0}
-        label={selectedCount > 0 ? `Pick Sides (${selectedCount})` : 'Pick Sides'}
+        disabled={isPickDisabled}
+        label={getButtonLabel()}
       />
     </SafeAreaView>
   );
