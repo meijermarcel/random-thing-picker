@@ -1,5 +1,34 @@
 import { Game, GameOdds, SportFilter, TeamStats } from '../types/sports';
 
+// Simple in-memory cache with TTL
+interface CacheEntry<T> {
+  data: T;
+  expiry: number;
+}
+
+const cache = new Map<string, CacheEntry<any>>();
+
+function getCached<T>(key: string): T | null {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiry) {
+    cache.delete(key);
+    return null;
+  }
+  return entry.data as T;
+}
+
+function setCache<T>(key: string, data: T, ttlMs: number): void {
+  cache.set(key, { data, expiry: Date.now() + ttlMs });
+}
+
+// Cache TTLs
+const CACHE_TTL = {
+  ADVANCED_STATS: 6 * 60 * 60 * 1000,  // 6 hours
+  SCHEDULE: 60 * 60 * 1000,             // 1 hour
+  INJURIES: 30 * 60 * 1000,             // 30 minutes
+};
+
 export const ENDPOINTS: Record<Exclude<SportFilter, 'all'>, { sport: string; league: string; name: string }> = {
   nfl: { sport: 'football', league: 'nfl', name: 'NFL' },
   nba: { sport: 'basketball', league: 'nba', name: 'NBA' },
