@@ -336,6 +336,67 @@ export async function fetchTeamSchedule(
   }
 }
 
+// Fetch league-wide injuries (cached)
+export async function fetchLeagueInjuries(
+  sport: string,
+  league: string
+): Promise<Map<string, InjuryReport>> {
+  const cacheKey = `injuries-${sport}-${league}`;
+  const cached = getCached<Map<string, InjuryReport>>(cacheKey);
+  if (cached) return cached;
+
+  const url = `https://site.api.espn.com/apis/site/v2/sports/${sport}/${league}/injuries`;
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return new Map();
+
+    const data = await response.json();
+    const teams = data.teams || [];
+    const injuryMap = new Map<string, InjuryReport>();
+
+    for (const teamData of teams) {
+      const teamId = teamData.team?.id;
+      if (!teamId) continue;
+
+      const injuries = teamData.injuries || [];
+      const playersOut: InjuredPlayer[] = [];
+      const playersQuestionable: InjuredPlayer[] = [];
+
+      for (const injury of injuries) {
+        const player: InjuredPlayer = {
+          name: injury.athlete?.displayName || 'Unknown',
+          position: injury.athlete?.position?.abbreviation || '',
+          status: injury.status === 'Out' ? 'out' : 'day-to-day',
+        };
+
+        if (injury.status === 'Out') {
+          playersOut.push(player);
+        } else {
+          playersQuestionable.push(player);
+        }
+      }
+
+      // Calculate impact score based on number of injuries
+      // Starters assumed to be first 5 listed (rough heuristic)
+      const starterOut = playersOut.slice(0, 5).length;
+      const rolePlayerOut = playersOut.slice(5).length;
+      const impactScore = 100 - (starterOut * 15) - (rolePlayerOut * 5) - (playersQuestionable.length * 3);
+
+      injuryMap.set(teamId, {
+        playersOut,
+        playersQuestionable,
+        impactScore: Math.max(0, impactScore),
+      });
+    }
+
+    setCache(cacheKey, injuryMap, CACHE_TTL.INJURIES);
+    return injuryMap;
+  } catch {
+    return new Map();
+  }
+}
+
 // Create basic stats from game record info when detailed API fails
 export function createBasicStats(teamName: string, teamId: string, record: string | undefined): TeamStats {
   const { wins, losses } = parseRecord(record);
