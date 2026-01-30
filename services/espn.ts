@@ -1,4 +1,4 @@
-import { Game, SportFilter, TeamStats } from '../types/sports';
+import { Game, GameOdds, SportFilter, TeamStats } from '../types/sports';
 
 export const ENDPOINTS: Record<Exclude<SportFilter, 'all'>, { sport: string; league: string; name: string }> = {
   nfl: { sport: 'football', league: 'nfl', name: 'NFL' },
@@ -13,6 +13,78 @@ function parseRecord(record: string | undefined): { wins: number; losses: number
   if (!record) return { wins: 0, losses: 0 };
   const parts = record.split('-').map(n => parseInt(n, 10));
   return { wins: parts[0] || 0, losses: parts[1] || 0 };
+}
+
+// Parse odds from ESPN API competition data
+function parseOdds(competition: any): GameOdds | undefined {
+  const oddsArray = competition?.odds;
+  if (!oddsArray || oddsArray.length === 0) return undefined;
+  
+  // Use the first odds provider (usually the primary one)
+  const oddsData = oddsArray[0];
+  
+  // Extract spread - ESPN format varies, check multiple possible locations
+  let spread: number | undefined;
+  let overUnder: number | undefined;
+  let homeMoneyline: number | undefined;
+  let awayMoneyline: number | undefined;
+  
+  // Check for spread in details array
+  if (oddsData.details) {
+    // Details string format is like "LAL -5.5" 
+    const detailsMatch = oddsData.details.match(/([+-]?\d+\.?\d*)/);
+    if (detailsMatch) {
+      spread = parseFloat(detailsMatch[1]);
+    }
+  }
+  
+  // Check spread directly
+  if (oddsData.spread !== undefined) {
+    spread = parseFloat(oddsData.spread);
+  }
+  
+  // Over/under total
+  if (oddsData.overUnder !== undefined) {
+    overUnder = parseFloat(oddsData.overUnder);
+  }
+  
+  // Moneylines from homeTeamOdds/awayTeamOdds
+  if (oddsData.homeTeamOdds?.moneyLine !== undefined) {
+    homeMoneyline = parseInt(oddsData.homeTeamOdds.moneyLine, 10);
+  }
+  if (oddsData.awayTeamOdds?.moneyLine !== undefined) {
+    awayMoneyline = parseInt(oddsData.awayTeamOdds.moneyLine, 10);
+  }
+  
+  // Also check for spread in team odds
+  if (spread === undefined && oddsData.homeTeamOdds?.spreadOdds !== undefined) {
+    // If home has positive spread odds, they're the underdog
+    const homeSpread = parseFloat(oddsData.homeTeamOdds.spreadOdds);
+    if (!isNaN(homeSpread)) {
+      spread = homeSpread;
+    }
+  }
+  
+  // If we still don't have spread, try to extract from awayTeamOdds
+  if (spread === undefined && oddsData.awayTeamOdds?.spreadOdds !== undefined) {
+    const awaySpread = parseFloat(oddsData.awayTeamOdds.spreadOdds);
+    if (!isNaN(awaySpread)) {
+      spread = -awaySpread; // Flip sign for home perspective
+    }
+  }
+  
+  if (spread === undefined && overUnder === undefined && 
+      homeMoneyline === undefined && awayMoneyline === undefined) {
+    return undefined;
+  }
+  
+  return {
+    spread,
+    overUnder,
+    homeMoneyline,
+    awayMoneyline,
+    provider: oddsData.provider?.name || 'ESPN',
+  };
 }
 
 async function fetchLeagueGames(sport: string, league: string, leagueName: string): Promise<Game[]> {
@@ -37,6 +109,9 @@ async function fetchLeagueGames(sport: string, league: string, leagueName: strin
         // Extract records - typically in records array, first entry is overall record
         const homeRecord = homeTeamData?.records?.[0]?.summary;
         const awayRecord = awayTeamData?.records?.[0]?.summary;
+        
+        // Extract odds
+        const odds = parseOdds(competition);
 
         return {
           id: event.id,
@@ -52,6 +127,7 @@ async function fetchLeagueGames(sport: string, league: string, leagueName: strin
           sport: sport,
           homeRecord,
           awayRecord,
+          odds,
         };
       })
       .filter((game: Game) => game.startTime <= maxDate);
