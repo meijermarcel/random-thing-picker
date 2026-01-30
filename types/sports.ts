@@ -41,6 +41,60 @@ export type PickMode = 'random' | 'analyzed';
 
 export type Confidence = 'low' | 'medium' | 'high';
 
+export interface AdvancedStats {
+  // Offensive
+  pointsPerGame: number;
+  fieldGoalPct: number;
+  threePointPct: number;
+  freeThrowPct: number;
+  assistsPerGame: number;
+  turnoversPerGame: number;
+  assistToTurnoverRatio: number;
+  offensiveReboundsPerGame: number;
+
+  // Defensive
+  blocksPerGame: number;
+  stealsPerGame: number;
+  defensiveReboundsPerGame: number;
+}
+
+export interface ScheduleGame {
+  gameId: string;
+  date: Date;
+  opponentId: string;
+  opponentName: string;
+  isHome: boolean;
+  teamScore?: number;
+  opponentScore?: number;
+  completed: boolean;
+}
+
+export interface ScheduleContext {
+  lastGameDate: Date | null;
+  daysSinceLastGame: number;
+  isBackToBack: boolean;
+  gamesInLast7Days: number;
+}
+
+export interface HeadToHead {
+  recentMeetings: number;
+  wins: number;
+  losses: number;
+  avgPointDiff: number;
+}
+
+export interface InjuredPlayer {
+  name: string;
+  position: string;
+  status: 'out' | 'day-to-day';
+}
+
+export interface InjuryReport {
+  playersOut: InjuredPlayer[];
+  playersQuestionable: InjuredPlayer[];
+  impactScore: number;
+}
+
 export interface TeamStats {
   teamId: string;
   teamName: string;
@@ -55,6 +109,11 @@ export interface TeamStats {
   pointsAgainst: number;
   streak: number;
   streakType: 'W' | 'L';
+  // Enhanced data (optional)
+  advanced?: AdvancedStats;
+  schedule?: ScheduleContext;
+  headToHead?: HeadToHead;
+  injuries?: InjuryReport;
 }
 
 export interface GameProjection {
