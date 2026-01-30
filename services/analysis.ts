@@ -1,12 +1,16 @@
-import { Game, GameOdds, TeamStats, PickAnalysis, PickType, Confidence, GameProjection } from '../types/sports';
+import { Game, GameOdds, TeamStats, AdvancedStats, ScheduleContext, HeadToHead, InjuryReport, PickAnalysis, PickType, Confidence, GameProjection } from '../types/sports';
 import { fetchTeamStats, createBasicStats, ENDPOINTS } from './espn';
 
 // Weights for different factors in the analysis
 const WEIGHTS = {
-  WIN_PCT: 0.30,
-  HOME_AWAY_SPLIT: 0.25,
-  RECENT_FORM: 0.25,
-  SCORING_MARGIN: 0.20,
+  WIN_PCT: 0.15,
+  HOME_AWAY_SPLIT: 0.15,
+  RECENT_FORM: 0.15,
+  SCORING_MARGIN: 0.10,
+  ADVANCED_STATS: 0.20,
+  REST_SCHEDULE: 0.10,
+  HEAD_TO_HEAD: 0.10,
+  INJURIES: 0.05,
 };
 
 // Sport-specific average scores (used when no data available)
@@ -25,6 +29,15 @@ const HOME_ADVANTAGE: Record<string, number> = {
   'hockey': 0.2,
   'baseball': 0.3,
   'soccer': 0.3,
+};
+
+// League average stats for normalization
+const LEAGUE_AVG_STATS: Record<string, { ppg: number; fgPct: number; astTov: number }> = {
+  'basketball': { ppg: 115, fgPct: 0.47, astTov: 1.7 },
+  'football': { ppg: 22, fgPct: 0.60, astTov: 1.5 },
+  'hockey': { ppg: 3, fgPct: 0.10, astTov: 1.0 },
+  'baseball': { ppg: 4.5, fgPct: 0.25, astTov: 1.0 },
+  'soccer': { ppg: 1.5, fgPct: 0.35, astTov: 1.0 },
 };
 
 // Calculate win percentage score (0-100)
@@ -59,17 +72,102 @@ function calculateMarginScore(stats: TeamStats): number {
   if (stats.pointsFor === 0 && stats.pointsAgainst === 0) {
     return 50; // No data available
   }
-  
+
   const totalGames = stats.wins + stats.losses;
   if (totalGames === 0) return 50;
-  
+
   const avgPointsFor = stats.pointsFor / totalGames;
   const avgPointsAgainst = stats.pointsAgainst / totalGames;
-  
+
   // Normalize: +20 margin = 100, -20 margin = 0, 0 margin = 50
   const margin = avgPointsFor - avgPointsAgainst;
   const normalized = 50 + (margin * 2.5);
   return Math.max(0, Math.min(100, normalized));
+}
+
+// Normalize a value against a baseline (returns 0-1 scale)
+function normalize(value: number, baseline: number): number {
+  if (baseline === 0) return 0.5;
+  const ratio = value / baseline;
+  // Clamp between 0.5 and 1.5, then normalize to 0-1
+  const clamped = Math.max(0.5, Math.min(1.5, ratio));
+  return (clamped - 0.5);
+}
+
+// Calculate advanced stats score (0-100)
+function calculateAdvancedScore(advanced: AdvancedStats | undefined, sport: string): number {
+  if (!advanced) return 50; // Neutral if no data
+
+  const leagueAvg = LEAGUE_AVG_STATS[sport] || LEAGUE_AVG_STATS['basketball'];
+
+  const offenseScore = (
+    normalize(advanced.pointsPerGame, leagueAvg.ppg) * 0.35 +
+    normalize(advanced.fieldGoalPct, leagueAvg.fgPct) * 0.25 +
+    normalize(advanced.assistToTurnoverRatio, leagueAvg.astTov) * 0.20 +
+    normalize(advanced.threePointPct, 0.36) * 0.20
+  );
+
+  const defenseScore = (
+    normalize(advanced.blocksPerGame, 5) * 0.35 +
+    normalize(advanced.stealsPerGame, 7) * 0.35 +
+    normalize(advanced.defensiveReboundsPerGame, 35) * 0.30
+  );
+
+  return (offenseScore * 0.6 + defenseScore * 0.4) * 100;
+}
+
+// Calculate rest advantage score (0-100)
+function calculateRestScore(
+  teamSchedule: ScheduleContext | undefined,
+  opponentSchedule: ScheduleContext | undefined
+): number {
+  if (!teamSchedule) return 50;
+
+  // Base score from days of rest
+  let baseScore: number;
+  if (teamSchedule.isBackToBack) {
+    baseScore = 30;
+  } else if (teamSchedule.daysSinceLastGame === 1) {
+    baseScore = 45;
+  } else if (teamSchedule.daysSinceLastGame === 2) {
+    baseScore = 60;
+  } else if (teamSchedule.daysSinceLastGame === 3) {
+    baseScore = 75;
+  } else {
+    baseScore = 85;
+  }
+
+  // Compare against opponent
+  if (opponentSchedule) {
+    const restDiff = teamSchedule.daysSinceLastGame - opponentSchedule.daysSinceLastGame;
+    if (restDiff >= 2) baseScore += 10;
+    else if (restDiff <= -2) baseScore -= 10;
+  }
+
+  return Math.max(0, Math.min(100, baseScore));
+}
+
+// Calculate head-to-head score (0-100)
+function calculateH2HScore(h2h: HeadToHead | undefined): number {
+  if (!h2h || h2h.recentMeetings < 2) return 50; // Not enough data
+
+  const winRate = h2h.wins / h2h.recentMeetings;
+  const marginFactor = Math.min(10, Math.max(-10, h2h.avgPointDiff)) / 10;
+
+  return Math.max(0, Math.min(100, 50 + (winRate - 0.5) * 60 + marginFactor * 20));
+}
+
+// Calculate injury advantage score (0-100)
+function calculateInjuryScore(
+  teamInjuries: InjuryReport | undefined,
+  opponentInjuries: InjuryReport | undefined
+): number {
+  const teamHealth = teamInjuries?.impactScore ?? 100;
+  const opponentHealth = opponentInjuries?.impactScore ?? 100;
+
+  // Score based on relative health advantage
+  const healthDiff = teamHealth - opponentHealth;
+  return Math.max(0, Math.min(100, 50 + healthDiff / 2));
 }
 
 // Calculate composite score for a team
