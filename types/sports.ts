@@ -57,11 +57,21 @@ export interface TeamStats {
   streakType: 'W' | 'L';
 }
 
+export interface GameProjection {
+  homePoints: number;       // Projected points for home team
+  awayPoints: number;       // Projected points for away team
+  totalPoints: number;      // Projected total points
+  projectedWinner: 'home' | 'away';
+  projectedMargin: number;  // Positive = home wins by X, negative = away wins by X
+  confidence: Confidence;
+}
+
 export interface PickAnalysis {
   pickType: PickType;
   confidence: Confidence;
   reasoning: string[];
-  homeScore: number;
-  awayScore: number;
+  homeScore: number;        // Analysis composite score (0-100)
+  awayScore: number;        // Analysis composite score (0-100)
   differential: number;
+  projection: GameProjection; // Actual predicted scores
 }
