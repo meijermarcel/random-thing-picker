@@ -1,4 +1,4 @@
-import { Game, TeamStats, PickAnalysis, PickType, Confidence } from '../types/sports';
+import { Game, GameOdds, TeamStats, PickAnalysis, PickType, Confidence } from '../types/sports';
 import { fetchTeamStats, createBasicStats, ENDPOINTS } from './espn';
 
 // Weights for different factors in the analysis
@@ -7,6 +7,15 @@ const WEIGHTS = {
   HOME_AWAY_SPLIT: 0.25,
   RECENT_FORM: 0.25,
   SCORING_MARGIN: 0.20,
+};
+
+// Thresholds for pick type decisions
+const THRESHOLDS = {
+  HEAVY_FAVORITE_SPREAD: 7,      // Spread >= 7 points = heavy favorite
+  LARGE_SPREAD: 4,               // Spread >= 4 points = consider underdog cover
+  HIGH_SCORING_THRESHOLD: 1.1,   // Combined avg > 110% of O/U = lean over
+  LOW_SCORING_THRESHOLD: 0.9,    // Combined avg < 90% of O/U = lean under
+  MONEYLINE_THRESHOLD: -250,     // Heavy favorite ML, consider spread instead
 };
 
 // Calculate win percentage score (0-100)
@@ -141,6 +150,59 @@ function generateReasoning(
   return reasons.slice(0, 3); // Limit to 3 reasons
 }
 
+// Generate reasoning for spread/cover picks
+function generateReasoningForCover(
+  homeStats: TeamStats,
+  awayStats: TeamStats,
+  underdogIsHome: boolean,
+  odds: GameOdds | undefined
+): string[] {
+  const reasons: string[] = [];
+  const underdogStats = underdogIsHome ? homeStats : awayStats;
+  const favoriteStats = underdogIsHome ? awayStats : homeStats;
+  
+  // Underdog record
+  const totalGames = underdogStats.wins + underdogStats.losses;
+  if (totalGames > 0) {
+    reasons.push(`${underdogStats.teamName} ${underdogStats.wins}-${underdogStats.losses} overall`);
+  }
+  
+  // Home/away edge for underdog
+  if (underdogIsHome) {
+    const homeGames = underdogStats.homeWins + underdogStats.homeLosses;
+    if (homeGames >= 3) {
+      reasons.push(`${underdogStats.teamName} ${underdogStats.homeWins}-${underdogStats.homeLosses} at home`);
+    }
+  } else {
+    const awayGames = underdogStats.awayWins + underdogStats.awayLosses;
+    if (awayGames >= 3 && underdogStats.awayWins > 0) {
+      reasons.push(`${underdogStats.teamName} ${underdogStats.awayWins}-${underdogStats.awayLosses} on road`);
+    }
+  }
+  
+  // Favorite struggles
+  if (!underdogIsHome) {
+    const favAwayGames = favoriteStats.awayWins + favoriteStats.awayLosses;
+    if (favAwayGames >= 3 && favoriteStats.awayLosses > favoriteStats.awayWins * 0.5) {
+      reasons.push(`${favoriteStats.teamName} ${favoriteStats.awayWins}-${favoriteStats.awayLosses} on road`);
+    }
+  }
+  
+  // Streak info
+  if (underdogStats.streak >= 2 && underdogStats.streakType === 'W') {
+    reasons.push(`${underdogStats.teamName} on ${underdogStats.streak}-game win streak`);
+  }
+  if (favoriteStats.streak >= 2 && favoriteStats.streakType === 'L') {
+    reasons.push(`${favoriteStats.teamName} on ${favoriteStats.streak}-game skid`);
+  }
+  
+  if (reasons.length === 0) {
+    reasons.push('Value on the points');
+  }
+  
+  return reasons.slice(0, 3);
+}
+
 // Get league key from sport name
 function getLeagueKey(sport: string, league: string): string {
   for (const [key, config] of Object.entries(ENDPOINTS)) {
@@ -149,6 +211,127 @@ function getLeagueKey(sport: string, league: string): string {
     }
   }
   return league.toLowerCase();
+}
+
+// Determine the best pick type based on analysis and odds
+function determineBestPick(
+  homeScore: number,
+  awayScore: number,
+  homeStats: TeamStats,
+  awayStats: TeamStats,
+  odds: GameOdds | undefined,
+  game: Game
+): { pickType: PickType; additionalReasoning: string[] } {
+  const differential = Math.abs(homeScore - awayScore);
+  const favoriteIsHome = homeScore >= awayScore;
+  const additionalReasoning: string[] = [];
+  
+  // If we have odds data, use it to make smarter decisions
+  if (odds) {
+    const spread = odds.spread;
+    const overUnder = odds.overUnder;
+    const homeML = odds.homeMoneyline;
+    const awayML = odds.awayMoneyline;
+    
+    // Check if favorite is a heavy favorite on moneyline
+    const favoriteML = favoriteIsHome ? homeML : awayML;
+    const underdogML = favoriteIsHome ? awayML : homeML;
+    
+    // Heavy favorite detection via moneyline or spread
+    const isHeavyFavorite = (
+      (favoriteML !== undefined && favoriteML <= THRESHOLDS.MONEYLINE_THRESHOLD) ||
+      (spread !== undefined && Math.abs(spread) >= THRESHOLDS.HEAVY_FAVORITE_SPREAD)
+    );
+    
+    // If favorite is heavy, consider underdog to cover
+    if (isHeavyFavorite && spread !== undefined) {
+      // Pick underdog to cover the spread
+      const underdogIsHome = !favoriteIsHome;
+      additionalReasoning.push(`Spread: ${spread > 0 ? '+' : ''}${spread} points`);
+      
+      // Check if underdog has good recent form (covers more often when hot)
+      const underdogStats = underdogIsHome ? homeStats : awayStats;
+      if (underdogStats.streakType === 'W' && underdogStats.streak >= 2) {
+        additionalReasoning.push(`${underdogStats.teamName} on ${underdogStats.streak}-game streak`);
+        return {
+          pickType: underdogIsHome ? 'home_cover' : 'away_cover',
+          additionalReasoning,
+        };
+      }
+      
+      // Heavy favorites often fail to cover large spreads
+      if (Math.abs(spread) >= THRESHOLDS.HEAVY_FAVORITE_SPREAD) {
+        additionalReasoning.push('Large spreads favor underdogs');
+        return {
+          pickType: underdogIsHome ? 'home_cover' : 'away_cover',
+          additionalReasoning,
+        };
+      }
+    }
+    
+    // Medium spread - consider the spread pick
+    if (spread !== undefined && Math.abs(spread) >= THRESHOLDS.LARGE_SPREAD) {
+      // Check underdog's away/home performance
+      const underdogIsHome = !favoriteIsHome;
+      const underdogStats = underdogIsHome ? homeStats : awayStats;
+      
+      // Good underdog + points = attractive pick
+      if (underdogStats.winPct >= 0.4) {
+        additionalReasoning.push(`${underdogStats.teamName} getting ${Math.abs(spread)} points`);
+        return {
+          pickType: underdogIsHome ? 'home_cover' : 'away_cover',
+          additionalReasoning,
+        };
+      }
+    }
+    
+    // Over/Under analysis
+    if (overUnder !== undefined && homeStats.pointsFor > 0 && awayStats.pointsFor > 0) {
+      const homeGames = homeStats.wins + homeStats.losses;
+      const awayGames = awayStats.wins + awayStats.losses;
+      
+      if (homeGames > 0 && awayGames > 0) {
+        const homeAvgFor = homeStats.pointsFor / homeGames;
+        const homeAvgAgainst = homeStats.pointsAgainst / homeGames;
+        const awayAvgFor = awayStats.pointsFor / awayGames;
+        const awayAvgAgainst = awayStats.pointsAgainst / awayGames;
+        
+        // Estimate total points: (Team A scores vs Team B defense + Team B scores vs Team A defense) / 2
+        const projectedTotal = (homeAvgFor + awayAvgFor + homeAvgAgainst + awayAvgAgainst) / 2;
+        const ratio = projectedTotal / overUnder;
+        
+        // Strong over lean
+        if (ratio >= THRESHOLDS.HIGH_SCORING_THRESHOLD) {
+          additionalReasoning.push(`Projected total ${projectedTotal.toFixed(0)} vs O/U ${overUnder}`);
+          additionalReasoning.push('Both teams trending high-scoring');
+          return { pickType: 'over', additionalReasoning };
+        }
+        
+        // Strong under lean
+        if (ratio <= THRESHOLDS.LOW_SCORING_THRESHOLD) {
+          additionalReasoning.push(`Projected total ${projectedTotal.toFixed(0)} vs O/U ${overUnder}`);
+          additionalReasoning.push('Defensive matchup favors under');
+          return { pickType: 'under', additionalReasoning };
+        }
+      }
+    }
+  }
+  
+  // Default: pick the favorite on moneyline only if differential is small
+  // Otherwise lean toward spread picks for value
+  if (differential < 10) {
+    return {
+      pickType: favoriteIsHome ? 'home' : 'away',
+      additionalReasoning,
+    };
+  }
+  
+  // Large differential but no spread data - still ML but note the edge
+  additionalReasoning.push(`Strong edge: +${differential.toFixed(1)} analysis score`);
+  return {
+    pickType: favoriteIsHome ? 'home' : 'away',
+    additionalReasoning,
+  };
 }
 
 // Analyze a game and return pick recommendation
@@ -176,16 +359,33 @@ export async function analyzeGame(game: Game): Promise<PickAnalysis> {
   // Calculate composite scores
   const homeScore = calculateCompositeScore(homeStats, true);
   const awayScore = calculateCompositeScore(awayStats, false);
-  
-  // Determine the pick
   const differential = Math.abs(homeScore - awayScore);
-  const pickHome = homeScore >= awayScore; // Tie goes to home team
+  const favoriteIsHome = homeScore >= awayScore;
   
-  // For moneyline, pick the favored team
-  const pickType: PickType = pickHome ? 'home' : 'away';
+  // Determine best pick type using odds and analysis
+  const { pickType, additionalReasoning } = determineBestPick(
+    homeScore,
+    awayScore,
+    homeStats,
+    awayStats,
+    game.odds,
+    game
+  );
   
   const confidence = getConfidence(differential);
-  const reasoning = generateReasoning(homeStats, awayStats, homeScore, awayScore, pickHome);
+  
+  // Generate reasoning based on pick type
+  let reasoning: string[];
+  if (pickType === 'over' || pickType === 'under') {
+    reasoning = additionalReasoning;
+  } else if (pickType === 'home_cover' || pickType === 'away_cover') {
+    const underdogIsHome = pickType === 'home_cover';
+    reasoning = generateReasoningForCover(homeStats, awayStats, underdogIsHome, game.odds);
+    reasoning = [...additionalReasoning, ...reasoning].slice(0, 4);
+  } else {
+    reasoning = generateReasoning(homeStats, awayStats, homeScore, awayScore, favoriteIsHome);
+    reasoning = [...additionalReasoning, ...reasoning].slice(0, 4);
+  }
   
   return {
     pickType,
@@ -217,19 +417,43 @@ export async function analyzeGames(games: Game[]): Promise<Map<string, PickAnaly
 
 // Generate a pick label based on analysis
 export function getAnalyzedPickLabel(game: Game, analysis: PickAnalysis): string {
+  const odds = game.odds;
+  
   switch (analysis.pickType) {
     case 'home':
       return `${game.homeTeam} ML`;
     case 'away':
       return `${game.awayTeam} ML`;
-    case 'home_cover':
-      return `${game.homeTeam} to cover`;
-    case 'away_cover':
-      return `${game.awayTeam} to cover`;
-    case 'over':
+    case 'home_cover': {
+      // Home is underdog, show positive spread
+      const spread = odds?.spread;
+      if (spread !== undefined && spread > 0) {
+        return `${game.homeTeam} +${spread}`;
+      }
+      return `${game.homeTeam} +pts`;
+    }
+    case 'away_cover': {
+      // Away is underdog, show positive spread
+      const spread = odds?.spread;
+      if (spread !== undefined && spread < 0) {
+        return `${game.awayTeam} +${Math.abs(spread)}`;
+      }
+      return `${game.awayTeam} +pts`;
+    }
+    case 'over': {
+      const total = odds?.overUnder;
+      if (total !== undefined) {
+        return `Over ${total}`;
+      }
       return 'Over';
-    case 'under':
+    }
+    case 'under': {
+      const total = odds?.overUnder;
+      if (total !== undefined) {
+        return `Under ${total}`;
+      }
       return 'Under';
+    }
     default:
       return `${game.homeTeam} ML`;
   }
