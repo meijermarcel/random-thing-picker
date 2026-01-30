@@ -1,3 +1,12 @@
+export interface GameOdds {
+  spread?: number;        // Positive = home underdog, Negative = home favorite
+  spreadOdds?: number;    // Odds for the spread (e.g., -110)
+  overUnder?: number;     // Total points line
+  homeMoneyline?: number; // Home team ML odds
+  awayMoneyline?: number; // Away team ML odds
+  provider?: string;      // Odds provider name
+}
+
 export interface Game {
   id: string;
   homeTeam: string;
@@ -13,6 +22,8 @@ export interface Game {
   // Team records from scoreboard
   homeRecord?: string;
   awayRecord?: string;
+  // Betting odds
+  odds?: GameOdds;
 }
 
 export type PickType = 'home' | 'away' | 'home_cover' | 'away_cover' | 'over' | 'under';
