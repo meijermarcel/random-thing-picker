@@ -1,5 +1,5 @@
 import { Game, GameOdds, TeamStats, AdvancedStats, ScheduleContext, HeadToHead, InjuryReport, PickAnalysis, PickType, Confidence, GameProjection } from '../types/sports';
-import { fetchTeamStats, createBasicStats, ENDPOINTS } from './espn';
+import { fetchTeamStats, fetchAdvancedStats, fetchTeamSchedule, fetchLeagueInjuries, calculateScheduleContext, calculateHeadToHead, createBasicStats, ENDPOINTS } from './espn';
 
 // Weights for different factors in the analysis
 const WEIGHTS = {
@@ -467,30 +467,87 @@ function generateProjectionReasoning(
 // Analyze a game and return pick recommendation with projections
 export async function analyzeGame(game: Game): Promise<PickAnalysis> {
   const leagueKey = getLeagueKey(game.sport, game.leagueAbbr);
-  
-  // Try to fetch detailed stats, fall back to basic stats from record
-  let homeStats: TeamStats;
-  let awayStats: TeamStats;
-  
-  if (game.homeTeamId && game.awayTeamId) {
-    const [homeResult, awayResult] = await Promise.all([
-      fetchTeamStats(game.sport, leagueKey, game.homeTeamId),
-      fetchTeamStats(game.sport, leagueKey, game.awayTeamId),
-    ]);
-    
-    homeStats = homeResult || createBasicStats(game.homeTeam, game.homeTeamId, game.homeRecord);
-    awayStats = awayResult || createBasicStats(game.awayTeam, game.awayTeamId, game.awayRecord);
-  } else {
-    // No team IDs, use basic stats from records
-    homeStats = createBasicStats(game.homeTeam, game.homeTeamId || 'home', game.homeRecord);
-    awayStats = createBasicStats(game.awayTeam, game.awayTeamId || 'away', game.awayRecord);
-  }
-  
-  // Calculate composite scores (for confidence/analysis)
-  const homeScore = calculateCompositeScore(homeStats, true);
-  const awayScore = calculateCompositeScore(awayStats, false);
+
+  // Fetch all data in parallel
+  const [
+    homeStatsResult,
+    awayStatsResult,
+    homeAdvanced,
+    awayAdvanced,
+    homeSchedule,
+    awaySchedule,
+    leagueInjuries,
+  ] = await Promise.all([
+    game.homeTeamId ? fetchTeamStats(game.sport, leagueKey, game.homeTeamId) : null,
+    game.awayTeamId ? fetchTeamStats(game.sport, leagueKey, game.awayTeamId) : null,
+    game.homeTeamId ? fetchAdvancedStats(game.sport, leagueKey, game.homeTeamId) : null,
+    game.awayTeamId ? fetchAdvancedStats(game.sport, leagueKey, game.awayTeamId) : null,
+    game.homeTeamId ? fetchTeamSchedule(game.sport, leagueKey, game.homeTeamId) : [],
+    game.awayTeamId ? fetchTeamSchedule(game.sport, leagueKey, game.awayTeamId) : [],
+    fetchLeagueInjuries(game.sport, leagueKey),
+  ]);
+
+  // Build team stats with fallbacks
+  const homeStats = homeStatsResult || createBasicStats(game.homeTeam, game.homeTeamId || 'home', game.homeRecord);
+  const awayStats = awayStatsResult || createBasicStats(game.awayTeam, game.awayTeamId || 'away', game.awayRecord);
+
+  // Calculate derived data
+  const homeScheduleCtx = calculateScheduleContext(homeSchedule, game.startTime);
+  const awayScheduleCtx = calculateScheduleContext(awaySchedule, game.startTime);
+  const h2h = game.awayTeamId ? calculateHeadToHead(homeSchedule, game.awayTeamId) : undefined;
+  const homeInjuries = game.homeTeamId ? leagueInjuries.get(game.homeTeamId) : undefined;
+  const awayInjuries = game.awayTeamId ? leagueInjuries.get(game.awayTeamId) : undefined;
+
+  // Calculate all factor scores
+  const homeWinPctScore = calculateWinPctScore(homeStats);
+  const awayWinPctScore = calculateWinPctScore(awayStats);
+
+  const homeHomeAwayScore = calculateHomeAwayScore(homeStats, true);
+  const awayHomeAwayScore = calculateHomeAwayScore(awayStats, false);
+
+  const homeFormScore = calculateFormScore(homeStats);
+  const awayFormScore = calculateFormScore(awayStats);
+
+  const homeMarginScore = calculateMarginScore(homeStats);
+  const awayMarginScore = calculateMarginScore(awayStats);
+
+  const homeAdvancedScore = calculateAdvancedScore(homeAdvanced, game.sport);
+  const awayAdvancedScore = calculateAdvancedScore(awayAdvanced, game.sport);
+
+  const homeRestScore = calculateRestScore(homeScheduleCtx, awayScheduleCtx);
+  const awayRestScore = calculateRestScore(awayScheduleCtx, homeScheduleCtx);
+
+  const homeH2HScore = calculateH2HScore(h2h);
+  const awayH2HScore = h2h ? 100 - homeH2HScore : 50; // Inverse for away team
+
+  const homeInjuryScore = calculateInjuryScore(homeInjuries, awayInjuries);
+  const awayInjuryScore = calculateInjuryScore(awayInjuries, homeInjuries);
+
+  // Calculate composite scores with new weights
+  const homeScore = (
+    homeWinPctScore * WEIGHTS.WIN_PCT +
+    homeHomeAwayScore * WEIGHTS.HOME_AWAY_SPLIT +
+    homeFormScore * WEIGHTS.RECENT_FORM +
+    homeMarginScore * WEIGHTS.SCORING_MARGIN +
+    homeAdvancedScore * WEIGHTS.ADVANCED_STATS +
+    homeRestScore * WEIGHTS.REST_SCHEDULE +
+    homeH2HScore * WEIGHTS.HEAD_TO_HEAD +
+    homeInjuryScore * WEIGHTS.INJURIES
+  );
+
+  const awayScore = (
+    awayWinPctScore * WEIGHTS.WIN_PCT +
+    awayHomeAwayScore * WEIGHTS.HOME_AWAY_SPLIT +
+    awayFormScore * WEIGHTS.RECENT_FORM +
+    awayMarginScore * WEIGHTS.SCORING_MARGIN +
+    awayAdvancedScore * WEIGHTS.ADVANCED_STATS +
+    awayRestScore * WEIGHTS.REST_SCHEDULE +
+    awayH2HScore * WEIGHTS.HEAD_TO_HEAD +
+    awayInjuryScore * WEIGHTS.INJURIES
+  );
+
   const differential = Math.abs(homeScore - awayScore);
-  
+
   // Calculate actual score projections
   const projection = calculateGameProjection(
     homeStats,
@@ -499,13 +556,21 @@ export async function analyzeGame(game: Game): Promise<PickAnalysis> {
     awayScore,
     game.sport
   );
-  
+
   // Determine pick type based on projection
   const pickType: PickType = projection.projectedWinner === 'home' ? 'home' : 'away';
-  
-  // Generate reasoning based on projections
-  const reasoning = generateProjectionReasoning(homeStats, awayStats, projection, game);
-  
+
+  // Generate enhanced reasoning
+  const reasoning = generateEnhancedReasoning(
+    homeStats, awayStats,
+    homeAdvanced, awayAdvanced,
+    homeScheduleCtx, awayScheduleCtx,
+    h2h,
+    homeInjuries, awayInjuries,
+    projection,
+    game
+  );
+
   return {
     pickType,
     confidence: projection.confidence,
