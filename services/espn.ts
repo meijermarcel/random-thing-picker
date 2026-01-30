@@ -1,4 +1,4 @@
-import { Game, GameOdds, SportFilter, TeamStats, AdvancedStats, ScheduleGame, InjuredPlayer, InjuryReport } from '../types/sports';
+import { Game, GameOdds, SportFilter, TeamStats, AdvancedStats, ScheduleGame, ScheduleContext, HeadToHead, InjuredPlayer, InjuryReport } from '../types/sports';
 
 // Simple in-memory cache with TTL
 interface CacheEntry<T> {
@@ -395,6 +395,69 @@ export async function fetchLeagueInjuries(
   } catch {
     return new Map();
   }
+}
+
+// Calculate rest context from schedule
+export function calculateScheduleContext(
+  schedule: ScheduleGame[],
+  gameDate: Date
+): ScheduleContext {
+  const completedGames = schedule
+    .filter(g => g.completed && g.date < gameDate)
+    .sort((a, b) => b.date.getTime() - a.date.getTime());
+
+  const lastGame = completedGames[0];
+  const lastGameDate = lastGame?.date || null;
+
+  let daysSinceLastGame = 7; // Default to well-rested
+  if (lastGameDate) {
+    const diffMs = gameDate.getTime() - lastGameDate.getTime();
+    daysSinceLastGame = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  }
+
+  const sevenDaysAgo = new Date(gameDate.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const gamesInLast7Days = completedGames.filter(g => g.date >= sevenDaysAgo).length;
+
+  return {
+    lastGameDate,
+    daysSinceLastGame,
+    isBackToBack: daysSinceLastGame <= 1,
+    gamesInLast7Days,
+  };
+}
+
+// Calculate head-to-head record from schedules
+export function calculateHeadToHead(
+  teamSchedule: ScheduleGame[],
+  opponentId: string
+): HeadToHead {
+  const meetings = teamSchedule.filter(
+    g => g.completed && g.opponentId === opponentId
+  );
+
+  if (meetings.length === 0) {
+    return { recentMeetings: 0, wins: 0, losses: 0, avgPointDiff: 0 };
+  }
+
+  let wins = 0;
+  let losses = 0;
+  let totalPointDiff = 0;
+
+  for (const game of meetings) {
+    if (game.teamScore !== undefined && game.opponentScore !== undefined) {
+      const diff = game.teamScore - game.opponentScore;
+      totalPointDiff += diff;
+      if (diff > 0) wins++;
+      else if (diff < 0) losses++;
+    }
+  }
+
+  return {
+    recentMeetings: meetings.length,
+    wins,
+    losses,
+    avgPointDiff: meetings.length > 0 ? totalPointDiff / meetings.length : 0,
+  };
 }
 
 // Create basic stats from game record info when detailed API fails
