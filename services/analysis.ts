@@ -464,6 +464,93 @@ function generateProjectionReasoning(
   return reasons.slice(0, 4);
 }
 
+// Generate enhanced reasoning with all factors
+function generateEnhancedReasoning(
+  homeStats: TeamStats,
+  awayStats: TeamStats,
+  homeAdvanced: AdvancedStats | null,
+  awayAdvanced: AdvancedStats | null,
+  homeSchedule: ScheduleContext,
+  awaySchedule: ScheduleContext,
+  h2h: HeadToHead | undefined,
+  homeInjuries: InjuryReport | undefined,
+  awayInjuries: InjuryReport | undefined,
+  projection: GameProjection,
+  game: Game
+): string[] {
+  const reasons: string[] = [];
+  const winner = projection.projectedWinner === 'home' ? homeStats : awayStats;
+  const loser = projection.projectedWinner === 'home' ? awayStats : homeStats;
+  const winnerAdvanced = projection.projectedWinner === 'home' ? homeAdvanced : awayAdvanced;
+  const loserAdvanced = projection.projectedWinner === 'home' ? awayAdvanced : homeAdvanced;
+  const winnerSchedule = projection.projectedWinner === 'home' ? homeSchedule : awaySchedule;
+  const loserSchedule = projection.projectedWinner === 'home' ? awaySchedule : homeSchedule;
+  const loserInjuries = projection.projectedWinner === 'home' ? awayInjuries : homeInjuries;
+
+  // Priority 1: Significant injuries
+  if (loserInjuries && loserInjuries.playersOut.length > 0) {
+    const topInjured = loserInjuries.playersOut[0];
+    reasons.push(`${loser.teamName} missing ${topInjured.name} (${topInjured.position})`);
+  }
+
+  // Priority 2: Rest disparity
+  const restDiff = winnerSchedule.daysSinceLastGame - loserSchedule.daysSinceLastGame;
+  if (restDiff >= 2) {
+    if (loserSchedule.isBackToBack) {
+      reasons.push(`${loser.teamName} on back-to-back`);
+    } else {
+      reasons.push(`${winner.teamName} ${winnerSchedule.daysSinceLastGame} days rest vs ${loserSchedule.daysSinceLastGame}`);
+    }
+  }
+
+  // Priority 3: H2H dominance
+  if (h2h && h2h.recentMeetings >= 3) {
+    const isWinnerHome = projection.projectedWinner === 'home';
+    const h2hWins = isWinnerHome ? h2h.wins : h2h.losses;
+    const h2hTotal = h2h.recentMeetings;
+    if (h2hWins / h2hTotal >= 0.7) {
+      reasons.push(`${winner.teamName} ${h2hWins}-${h2hTotal - h2hWins} vs ${loser.teamName} this season`);
+    }
+  }
+
+  // Priority 4: Advanced stats edge
+  if (winnerAdvanced && loserAdvanced) {
+    const fgDiff = winnerAdvanced.fieldGoalPct - loserAdvanced.fieldGoalPct;
+    if (fgDiff >= 0.03) {
+      reasons.push(`${winner.teamName} shooting ${(winnerAdvanced.fieldGoalPct * 100).toFixed(1)}% vs ${(loserAdvanced.fieldGoalPct * 100).toFixed(1)}%`);
+    }
+  }
+
+  // Priority 5: Records
+  const winnerGames = winner.wins + winner.losses;
+  if (winnerGames > 0) {
+    reasons.push(`${winner.teamName} ${winner.wins}-${winner.losses} (${(winner.winPct * 100).toFixed(0)}%)`);
+  }
+
+  // Priority 6: Home/away record
+  if (projection.projectedWinner === 'home') {
+    const homeGames = homeStats.homeWins + homeStats.homeLosses;
+    if (homeGames >= 5) {
+      reasons.push(`${homeStats.teamName} ${homeStats.homeWins}-${homeStats.homeLosses} at home`);
+    }
+  } else {
+    const awayGames = awayStats.awayWins + awayStats.awayLosses;
+    if (awayGames >= 5) {
+      reasons.push(`${awayStats.teamName} ${awayStats.awayWins}-${awayStats.awayLosses} on road`);
+    }
+  }
+
+  // Priority 7: Streaks
+  if (winner.streak >= 3 && winner.streakType === 'W') {
+    reasons.push(`${winner.teamName} on ${winner.streak}-game win streak`);
+  }
+  if (loser.streak >= 3 && loser.streakType === 'L') {
+    reasons.push(`${loser.teamName} on ${loser.streak}-game losing streak`);
+  }
+
+  return reasons.slice(0, 5); // Max 5 reasons
+}
+
 // Analyze a game and return pick recommendation with projections
 export async function analyzeGame(game: Game): Promise<PickAnalysis> {
   const leagueKey = getLeagueKey(game.sport, game.leagueAbbr);
