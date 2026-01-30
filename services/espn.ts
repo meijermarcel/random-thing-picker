@@ -1,4 +1,4 @@
-import { Game, GameOdds, SportFilter, TeamStats } from '../types/sports';
+import { Game, GameOdds, SportFilter, TeamStats, AdvancedStats, ScheduleGame, InjuredPlayer, InjuryReport } from '../types/sports';
 
 // Simple in-memory cache with TTL
 interface CacheEntry<T> {
@@ -230,6 +230,63 @@ export async function fetchTeamStats(sport: string, league: string, teamId: stri
       streak: Math.abs(streakValue),
       streakType,
     };
+  } catch {
+    return null;
+  }
+}
+
+// Fetch advanced team statistics
+export async function fetchAdvancedStats(
+  sport: string,
+  league: string,
+  teamId: string
+): Promise<AdvancedStats | null> {
+  const cacheKey = `advanced-${sport}-${league}-${teamId}`;
+  const cached = getCached<AdvancedStats>(cacheKey);
+  if (cached) return cached;
+
+  const url = `https://site.api.espn.com/apis/site/v2/sports/${sport}/${league}/teams/${teamId}/statistics`;
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    const stats = data.results?.stats || data.splits?.categories || [];
+
+    // Helper to find stat by name
+    const findStat = (name: string): number => {
+      for (const category of stats) {
+        const statList = category.stats || [];
+        const stat = statList.find((s: any) =>
+          s.name?.toLowerCase() === name.toLowerCase() ||
+          s.displayName?.toLowerCase().includes(name.toLowerCase())
+        );
+        if (stat?.value !== undefined) return parseFloat(stat.value) || 0;
+      }
+      return 0;
+    };
+
+    const advanced: AdvancedStats = {
+      pointsPerGame: findStat('avgPoints') || findStat('pointsPerGame'),
+      fieldGoalPct: findStat('fieldGoalPct') || findStat('fgPct'),
+      threePointPct: findStat('threePointFieldGoalPct') || findStat('3ptPct'),
+      freeThrowPct: findStat('freeThrowPct') || findStat('ftPct'),
+      assistsPerGame: findStat('avgAssists') || findStat('assistsPerGame'),
+      turnoversPerGame: findStat('avgTurnovers') || findStat('turnoversPerGame'),
+      assistToTurnoverRatio: findStat('assistTurnoverRatio'),
+      offensiveReboundsPerGame: findStat('avgOffensiveRebounds'),
+      blocksPerGame: findStat('avgBlocks') || findStat('blocksPerGame'),
+      stealsPerGame: findStat('avgSteals') || findStat('stealsPerGame'),
+      defensiveReboundsPerGame: findStat('avgDefensiveRebounds'),
+    };
+
+    // Only cache if we got meaningful data
+    if (advanced.pointsPerGame > 0) {
+      setCache(cacheKey, advanced, CACHE_TTL.ADVANCED_STATS);
+    }
+
+    return advanced;
   } catch {
     return null;
   }
