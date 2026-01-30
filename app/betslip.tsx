@@ -31,23 +31,26 @@ export default function BetSlip() {
   const { picks: picksParam } = useLocalSearchParams<{ picks: string }>();
   const picks: Pick[] = picksParam ? JSON.parse(picksParam) : [];
   
-  // Check if any picks have analysis
-  const hasAnalysis = picks.some(pick => pick.analysis);
+  // Check if any picks have analysis with projections
+  const hasAnalysis = picks.some(pick => pick.analysis?.projection);
 
   const handleShare = async () => {
     const pickLines = picks.map((pick) => {
-      let line = `${pick.game.awayTeam} @ ${pick.game.homeTeam}\n→ ${pick.label}`;
-      if (pick.analysis) {
-        line += ` (${pick.analysis.confidence} confidence)`;
-        if (pick.analysis.reasoning.length > 0) {
-          line += `\n  ${pick.analysis.reasoning.join('\n  ')}`;
-        }
+      let line = `${pick.game.awayTeam} @ ${pick.game.homeTeam}`;
+      
+      if (pick.analysis?.projection) {
+        const p = pick.analysis.projection;
+        line += `\nProjected: ${pick.game.awayTeam} ${p.awayPoints} - ${pick.game.homeTeam} ${p.homePoints}`;
+        line += `\nTotal: ${p.totalPoints} | Margin: ${p.projectedWinner === 'home' ? pick.game.homeTeam : pick.game.awayTeam} by ${Math.abs(p.projectedMargin)}`;
+        line += `\nConfidence: ${pick.analysis.confidence}`;
+      } else {
+        line += `\n→ ${pick.label}`;
       }
+      
       return line;
     });
-    const parlayText = picks.length > 1 ? `${picks.length}-leg parlay` : 'Straight bet';
-    const analysisNote = hasAnalysis ? ' - Analyzed' : '';
-    const message = `My Picks (${parlayText}${analysisNote}):\n\n${pickLines.join('\n\n')}`;
+    
+    const message = `Game Projections:\n\n${pickLines.join('\n\n')}`;
 
     try {
       await Share.share({ message });
@@ -59,60 +62,132 @@ export default function BetSlip() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Bet Slip</Text>
-        <Text style={styles.headerSubtitle}>{picks.length} {picks.length === 1 ? 'pick' : 'picks'}</Text>
+        <Text style={styles.headerTitle}>{hasAnalysis ? 'Game Projections' : 'Bet Slip'}</Text>
+        <Text style={styles.headerSubtitle}>{picks.length} {picks.length === 1 ? 'game' : 'games'}</Text>
       </View>
 
       <FlatList
         data={picks}
         keyExtractor={(item) => item.game.id}
         contentContainerStyle={styles.listContent}
-        renderItem={({ item }) => (
-          <View style={styles.pickCard}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.league}>{item.game.leagueAbbr}</Text>
-              <View style={styles.pickBadge}>
-                <Text style={styles.pickLabel}>{item.label}</Text>
-              </View>
-            </View>
-            <View style={styles.teamRow}>
-              {item.game.awayLogo && (
-                <Image source={{ uri: item.game.awayLogo }} style={styles.logo} />
-              )}
-              <Text style={styles.teamName}>{item.game.awayTeam}</Text>
-            </View>
-            <View style={styles.teamRow}>
-              {item.game.homeLogo && (
-                <Image source={{ uri: item.game.homeLogo }} style={styles.logo} />
-              )}
-              <Text style={styles.teamName}>{item.game.homeTeam}</Text>
-            </View>
-            
-            {item.analysis && (
-              <View style={styles.analysisSection}>
-                <View style={styles.confidenceRow}>
-                  <Ionicons 
-                    name={getConfidenceIcon(item.analysis.confidence) as any}
-                    size={16}
-                    color={getConfidenceColor(item.analysis.confidence)}
-                  />
-                  <Text style={[
-                    styles.confidenceText,
-                    { color: getConfidenceColor(item.analysis.confidence) }
+        renderItem={({ item }) => {
+          const projection = item.analysis?.projection;
+          const odds = item.game.odds;
+          
+          return (
+            <View style={styles.pickCard}>
+              <View style={styles.cardHeader}>
+                <Text style={styles.league}>{item.game.leagueAbbr}</Text>
+                {item.analysis && (
+                  <View style={[
+                    styles.confidenceBadge,
+                    { backgroundColor: getConfidenceColor(item.analysis.confidence) + '20' }
                   ]}>
-                    {item.analysis.confidence.charAt(0).toUpperCase() + item.analysis.confidence.slice(1)} Confidence
-                  </Text>
-                </View>
-                {item.analysis.reasoning.map((reason, index) => (
-                  <View key={index} style={styles.reasonRow}>
-                    <Text style={styles.reasonBullet}>•</Text>
-                    <Text style={styles.reasonText}>{reason}</Text>
+                    <Ionicons 
+                      name={getConfidenceIcon(item.analysis.confidence) as any}
+                      size={12}
+                      color={getConfidenceColor(item.analysis.confidence)}
+                    />
+                    <Text style={[
+                      styles.confidenceBadgeText,
+                      { color: getConfidenceColor(item.analysis.confidence) }
+                    ]}>
+                      {item.analysis.confidence.charAt(0).toUpperCase() + item.analysis.confidence.slice(1)}
+                    </Text>
                   </View>
-                ))}
+                )}
               </View>
-            )}
-          </View>
-        )}
+              
+              {/* Projected Score Display */}
+              {projection ? (
+                <View style={styles.projectionSection}>
+                  <View style={styles.scoreRow}>
+                    <View style={styles.teamScoreBlock}>
+                      {item.game.awayLogo && (
+                        <Image source={{ uri: item.game.awayLogo }} style={styles.scoreLogo} />
+                      )}
+                      <Text style={styles.scoreTeamName}>{item.game.awayTeam}</Text>
+                      <Text style={[
+                        styles.projectedScore,
+                        projection.projectedWinner === 'away' && styles.winningScore
+                      ]}>
+                        {projection.awayPoints}
+                      </Text>
+                    </View>
+                    <Text style={styles.vsText}>vs</Text>
+                    <View style={styles.teamScoreBlock}>
+                      {item.game.homeLogo && (
+                        <Image source={{ uri: item.game.homeLogo }} style={styles.scoreLogo} />
+                      )}
+                      <Text style={styles.scoreTeamName}>{item.game.homeTeam}</Text>
+                      <Text style={[
+                        styles.projectedScore,
+                        projection.projectedWinner === 'home' && styles.winningScore
+                      ]}>
+                        {projection.homePoints}
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  {/* Projection Summary */}
+                  <View style={styles.projectionStats}>
+                    <View style={styles.statItem}>
+                      <Text style={styles.statLabel}>Total</Text>
+                      <Text style={styles.statValue}>{projection.totalPoints}</Text>
+                      {odds?.overUnder && (
+                        <Text style={styles.lineComparison}>
+                          Line: {odds.overUnder}
+                        </Text>
+                      )}
+                    </View>
+                    <View style={styles.statDivider} />
+                    <View style={styles.statItem}>
+                      <Text style={styles.statLabel}>Margin</Text>
+                      <Text style={styles.statValue}>
+                        {projection.projectedWinner === 'home' ? item.game.homeTeam : item.game.awayTeam} by {Math.abs(projection.projectedMargin)}
+                      </Text>
+                      {odds?.spread && (
+                        <Text style={styles.lineComparison}>
+                          Line: {odds.spread > 0 ? '+' : ''}{odds.spread}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                </View>
+              ) : (
+                <>
+                  <View style={styles.teamRow}>
+                    {item.game.awayLogo && (
+                      <Image source={{ uri: item.game.awayLogo }} style={styles.logo} />
+                    )}
+                    <Text style={styles.teamName}>{item.game.awayTeam}</Text>
+                  </View>
+                  <View style={styles.teamRow}>
+                    {item.game.homeLogo && (
+                      <Image source={{ uri: item.game.homeLogo }} style={styles.logo} />
+                    )}
+                    <Text style={styles.teamName}>{item.game.homeTeam}</Text>
+                  </View>
+                  <View style={styles.pickBadge}>
+                    <Text style={styles.pickLabel}>{item.label}</Text>
+                  </View>
+                </>
+              )}
+              
+              {/* Reasoning */}
+              {item.analysis && item.analysis.reasoning.length > 0 && (
+                <View style={styles.reasoningSection}>
+                  {item.analysis.reasoning.map((reason, index) => (
+                    <View key={index} style={styles.reasonRow}>
+                      <Text style={styles.reasonBullet}>•</Text>
+                      <Text style={styles.reasonText}>{reason}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          );
+        }}
         ListFooterComponent={() => (
           <View style={styles.footer}>
             <View style={styles.summaryRow}>
@@ -215,27 +290,104 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 5,
+    alignSelf: 'flex-start',
+    marginTop: 8,
   },
   pickLabel: {
     fontSize: 12,
     fontWeight: '600',
     color: '#fff',
   },
-  analysisSection: {
+  confidenceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  confidenceBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  projectionSection: {
+    marginTop: 8,
+  },
+  scoreRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 10,
+    padding: 12,
+  },
+  teamScoreBlock: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  scoreLogo: {
+    width: 32,
+    height: 32,
+    marginBottom: 4,
+  },
+  scoreTeamName: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '500',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  projectedScore: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#333',
+  },
+  winningScore: {
+    color: '#007AFF',
+  },
+  vsText: {
+    fontSize: 14,
+    color: '#aaa',
+    fontWeight: '600',
+    marginHorizontal: 8,
+  },
+  projectionStats: {
+    flexDirection: 'row',
+    marginTop: 12,
+    backgroundColor: '#f0f7ff',
+    borderRadius: 8,
+    padding: 10,
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statLabel: {
+    fontSize: 11,
+    color: '#888',
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  statValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#333',
+  },
+  lineComparison: {
+    fontSize: 11,
+    color: '#007AFF',
+    marginTop: 2,
+  },
+  statDivider: {
+    width: 1,
+    backgroundColor: '#ddd',
+    marginHorizontal: 10,
+  },
+  reasoningSection: {
     marginTop: 10,
     paddingTop: 10,
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
-  },
-  confidenceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 6,
-  },
-  confidenceText: {
-    fontSize: 13,
-    fontWeight: '600',
   },
   reasonRow: {
     flexDirection: 'row',
