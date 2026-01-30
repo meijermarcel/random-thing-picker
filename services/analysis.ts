@@ -598,8 +598,8 @@ export async function analyzeGame(game: Game): Promise<PickAnalysis> {
   const homeMarginScore = calculateMarginScore(homeStats);
   const awayMarginScore = calculateMarginScore(awayStats);
 
-  const homeAdvancedScore = calculateAdvancedScore(homeAdvanced, game.sport);
-  const awayAdvancedScore = calculateAdvancedScore(awayAdvanced, game.sport);
+  const homeAdvancedScore = calculateAdvancedScore(homeAdvanced ?? undefined, game.sport);
+  const awayAdvancedScore = calculateAdvancedScore(awayAdvanced ?? undefined, game.sport);
 
   const homeRestScore = calculateRestScore(homeScheduleCtx, awayScheduleCtx);
   const awayRestScore = calculateRestScore(awayScheduleCtx, homeScheduleCtx);
