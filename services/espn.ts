@@ -292,6 +292,50 @@ export async function fetchAdvancedStats(
   }
 }
 
+// Fetch team schedule for rest days and H2H calculation
+export async function fetchTeamSchedule(
+  sport: string,
+  league: string,
+  teamId: string
+): Promise<ScheduleGame[]> {
+  const cacheKey = `schedule-${sport}-${league}-${teamId}`;
+  const cached = getCached<ScheduleGame[]>(cacheKey);
+  if (cached) return cached;
+
+  const url = `https://site.api.espn.com/apis/site/v2/sports/${sport}/${league}/teams/${teamId}/schedule`;
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return [];
+
+    const data = await response.json();
+    const events = data.events || [];
+
+    const schedule: ScheduleGame[] = events.map((event: any) => {
+      const competition = event.competitions?.[0];
+      const competitors = competition?.competitors || [];
+      const team = competitors.find((c: any) => c.id === teamId);
+      const opponent = competitors.find((c: any) => c.id !== teamId);
+
+      return {
+        gameId: event.id,
+        date: new Date(event.date),
+        opponentId: opponent?.id || '',
+        opponentName: opponent?.team?.displayName || 'Unknown',
+        isHome: team?.homeAway === 'home',
+        teamScore: team?.score ? parseInt(team.score, 10) : undefined,
+        opponentScore: opponent?.score ? parseInt(opponent.score, 10) : undefined,
+        completed: competition?.status?.type?.completed || false,
+      };
+    });
+
+    setCache(cacheKey, schedule, CACHE_TTL.SCHEDULE);
+    return schedule;
+  } catch {
+    return [];
+  }
+}
+
 // Create basic stats from game record info when detailed API fails
 export function createBasicStats(teamName: string, teamId: string, record: string | undefined): TeamStats {
   const { wins, losses } = parseRecord(record);
