@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { router } from 'expo-router';
 import { Game, ParlayRecommendation } from '../../types/sports';
@@ -8,6 +8,9 @@ import { generateParlays } from '../../services/parlayBuilder';
 import { DateSelector } from '../../components/DateSelector';
 import { ParlayCard } from '../../components/ParlayCard';
 
+// Helper to get date string for comparison
+const getDateKey = (date: Date) => date.toISOString().split('T')[0];
+
 export default function Parlays() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [parlays, setParlays] = useState<ParlayRecommendation[]>([]);
@@ -15,14 +18,23 @@ export default function Parlays() {
   const [refreshing, setRefreshing] = useState(false);
   const [gameCount, setGameCount] = useState(0);
   const [analyzingCount, setAnalyzingCount] = useState(0);
+  const loadedDateRef = useRef<string | null>(null);
 
-  const loadParlays = useCallback(async () => {
+  const loadParlays = useCallback(async (forceRefresh = false) => {
+    const dateKey = getDateKey(selectedDate);
+
+    // Skip if we already have data for this date (unless force refresh)
+    if (!forceRefresh && loadedDateRef.current === dateKey) {
+      return;
+    }
+
     // Fetch all games
     const games = await fetchGames('all', selectedDate);
     setGameCount(games.length);
 
     if (games.length === 0) {
       setParlays([]);
+      loadedDateRef.current = dateKey;
       return;
     }
 
@@ -34,17 +46,22 @@ export default function Parlays() {
     // Generate parlays
     const recommendations = generateParlays(games, analyses);
     setParlays(recommendations);
+    loadedDateRef.current = dateKey;
   }, [selectedDate]);
 
   useEffect(() => {
-    setLoading(true);
-    setAnalyzingCount(0);
+    const dateKey = getDateKey(selectedDate);
+    // Only show loading if we don't have data for this date
+    if (loadedDateRef.current !== dateKey) {
+      setLoading(true);
+      setAnalyzingCount(0);
+    }
     loadParlays().finally(() => setLoading(false));
   }, [loadParlays]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await loadParlays();
+    await loadParlays(true);
     setRefreshing(false);
   };
 
