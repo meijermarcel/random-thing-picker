@@ -5,6 +5,7 @@ import { Game, Pick, SportFilter as SportFilterType, PickMode, PickType } from '
 import { fetchGames } from '../../services/espn';
 import { analyzeGames, getAnalyzedPickLabel } from '../../services/analysis';
 import { SportFilter } from '../../components/SportFilter';
+import { DateSelector } from '../../components/DateSelector';
 import { GameRow } from '../../components/GameRow';
 import { PickButton } from '../../components/PickButton';
 import { PickModeSelector } from '../../components/PickModeSelector';
@@ -13,18 +14,20 @@ export default function Sports() {
   const [games, setGames] = useState<Game[]>([]);
   const [selectedGames, setSelectedGames] = useState<Map<string, Game>>(new Map());
   const [filter, setFilter] = useState<SportFilterType>('all');
-  const [pickMode, setPickMode] = useState<PickMode>('random');
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [pickMode, setPickMode] = useState<PickMode>('analyzed');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
 
   const loadGames = useCallback(async () => {
-    const data = await fetchGames(filter);
+    const data = await fetchGames(filter, selectedDate);
     setGames(data);
-  }, [filter]);
+  }, [filter, selectedDate]);
 
   useEffect(() => {
     setLoading(true);
+    setSelectedGames(new Map()); // Clear selections when filter/date changes
     loadGames().finally(() => setLoading(false));
   }, [loadGames]);
 
@@ -148,8 +151,9 @@ export default function Sports() {
   return (
     <SafeAreaView style={styles.container}>
       <SportFilter selected={filter} onSelect={setFilter} />
-      <PickModeSelector 
-        selected={pickMode} 
+      <DateSelector selectedDate={selectedDate} onDateChange={setSelectedDate} />
+      <PickModeSelector
+        selected={pickMode}
         onSelect={setPickMode}
         disabled={analyzing}
       />

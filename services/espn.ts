@@ -117,8 +117,20 @@ function parseOdds(competition: any): GameOdds | undefined {
   };
 }
 
-async function fetchLeagueGames(sport: string, league: string, leagueName: string): Promise<Game[]> {
-  const url = `https://site.api.espn.com/apis/site/v2/sports/${sport}/${league}/scoreboard`;
+// Format date as YYYYMMDD for ESPN API
+function formatDateForApi(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}${month}${day}`;
+}
+
+async function fetchLeagueGames(sport: string, league: string, leagueName: string, date?: Date): Promise<Game[]> {
+  let url = `https://site.api.espn.com/apis/site/v2/sports/${sport}/${league}/scoreboard`;
+
+  if (date) {
+    url += `?dates=${formatDateForApi(date)}`;
+  }
 
   try {
     const response = await fetch(url);
@@ -126,9 +138,6 @@ async function fetchLeagueGames(sport: string, league: string, leagueName: strin
 
     const data = await response.json();
     const events = data.events || [];
-
-    const now = new Date();
-    const maxDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
 
     return events
       .map((event: any) => {
@@ -139,7 +148,7 @@ async function fetchLeagueGames(sport: string, league: string, leagueName: strin
         // Extract records - typically in records array, first entry is overall record
         const homeRecord = homeTeamData?.records?.[0]?.summary;
         const awayRecord = awayTeamData?.records?.[0]?.summary;
-        
+
         // Extract odds
         const odds = parseOdds(competition);
 
@@ -159,8 +168,7 @@ async function fetchLeagueGames(sport: string, league: string, leagueName: strin
           awayRecord,
           odds,
         };
-      })
-      .filter((game: Game) => game.startTime <= maxDate);
+      });
   } catch {
     return [];
   }
@@ -483,16 +491,16 @@ export function createBasicStats(teamName: string, teamId: string, record: strin
   };
 }
 
-export async function fetchGames(filter: SportFilter): Promise<Game[]> {
+export async function fetchGames(filter: SportFilter, date?: Date): Promise<Game[]> {
   if (filter === 'all') {
     const allGames = await Promise.all(
       Object.entries(ENDPOINTS).map(([_, config]) =>
-        fetchLeagueGames(config.sport, config.league, config.name)
+        fetchLeagueGames(config.sport, config.league, config.name, date)
       )
     );
     return allGames.flat().sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
   }
 
   const config = ENDPOINTS[filter];
-  return fetchLeagueGames(config.sport, config.league, config.name);
+  return fetchLeagueGames(config.sport, config.league, config.name, date);
 }
