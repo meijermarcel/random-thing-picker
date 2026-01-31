@@ -29,7 +29,7 @@ function getConfidenceIcon(confidence: Confidence): string {
 }
 
 export default function BetSlip() {
-  const { picks: picksParam } = useLocalSearchParams<{ picks: string }>();
+  const { picks: picksParam, returnTo } = useLocalSearchParams<{ picks: string; returnTo?: string }>();
   const picks: Pick[] = picksParam ? JSON.parse(picksParam) : [];
   const [showConfidenceInfo, setShowConfidenceInfo] = useState(false);
 
@@ -226,7 +226,7 @@ export default function BetSlip() {
           <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
             <Text style={styles.shareButtonText}>Share</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.button} onPress={() => router.back()}>
+          <TouchableOpacity style={styles.button} onPress={() => router.replace(`/(tabs)/${returnTo || 'sports'}`)}>
             <Text style={styles.buttonText}>Done</Text>
           </TouchableOpacity>
         </View>

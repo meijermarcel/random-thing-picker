@@ -85,7 +85,7 @@ export default function Sports() {
     });
     router.push({
       pathname: '/betslip',
-      params: { picks: JSON.stringify(newPicks) },
+      params: { picks: JSON.stringify(newPicks), returnTo: 'sports' },
     });
   };
 
@@ -118,7 +118,7 @@ export default function Sports() {
       
       router.push({
         pathname: '/betslip',
-        params: { picks: JSON.stringify(newPicks) },
+        params: { picks: JSON.stringify(newPicks), returnTo: 'sports' },
       });
     } catch (error) {
       console.error('Analysis failed:', error);
@@ -166,7 +166,7 @@ export default function Sports() {
 
       router.push({
         pathname: '/betslip',
-        params: { picks: JSON.stringify(newPicks) },
+        params: { picks: JSON.stringify(newPicks), returnTo: 'sports' },
       });
     } catch (error) {
       console.error('Analysis failed:', error);

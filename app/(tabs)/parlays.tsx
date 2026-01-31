@@ -51,7 +51,7 @@ export default function Parlays() {
   const handleViewParlay = (parlay: ParlayRecommendation) => {
     router.push({
       pathname: '/betslip',
-      params: { picks: JSON.stringify(parlay.picks) },
+      params: { picks: JSON.stringify(parlay.picks), returnTo: 'parlays' },
     });
   };
 
