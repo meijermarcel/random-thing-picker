@@ -115,12 +115,14 @@ export default function BetSlip() {
                       <Text style={styles.scoreTeamName}>{item.game.awayTeam}</Text>
                       <Text style={[
                         styles.projectedScore,
-                        projection.projectedWinner === 'away' && styles.winningScore
+                        item.analysis?.pickType !== 'draw' && projection.projectedWinner === 'away' && styles.winningScore
                       ]}>
                         {projection.awayPoints}
                       </Text>
                     </View>
-                    <Text style={styles.vsText}>vs</Text>
+                    <Text style={[styles.vsText, item.analysis?.pickType === 'draw' && styles.drawText]}>
+                      {item.analysis?.pickType === 'draw' ? 'DRAW' : 'vs'}
+                    </Text>
                     <View style={styles.teamScoreBlock}>
                       {item.game.homeLogo && (
                         <Image source={{ uri: item.game.homeLogo }} style={styles.scoreLogo} />
@@ -128,7 +130,7 @@ export default function BetSlip() {
                       <Text style={styles.scoreTeamName}>{item.game.homeTeam}</Text>
                       <Text style={[
                         styles.projectedScore,
-                        projection.projectedWinner === 'home' && styles.winningScore
+                        item.analysis?.pickType !== 'draw' && projection.projectedWinner === 'home' && styles.winningScore
                       ]}>
                         {projection.homePoints}
                       </Text>
@@ -148,11 +150,14 @@ export default function BetSlip() {
                     </View>
                     <View style={styles.statDivider} />
                     <View style={styles.statItem}>
-                      <Text style={styles.statLabel}>Margin</Text>
+                      <Text style={styles.statLabel}>{item.analysis?.pickType === 'draw' ? 'Prediction' : 'Margin'}</Text>
                       <Text style={styles.statValue}>
-                        {projection.projectedWinner === 'home' ? item.game.homeTeam : item.game.awayTeam} by {Math.abs(projection.projectedMargin)}
+                        {item.analysis?.pickType === 'draw'
+                          ? 'Draw'
+                          : `${projection.projectedWinner === 'home' ? item.game.homeTeam : item.game.awayTeam} by ${Math.abs(projection.projectedMargin)}`
+                        }
                       </Text>
-                      {odds?.spread && (
+                      {odds?.spread && item.analysis?.pickType !== 'draw' && (
                         <Text style={styles.lineComparison}>
                           Line: {odds.spread > 0 ? '+' : ''}{odds.spread}
                         </Text>
@@ -423,6 +428,11 @@ const styles = StyleSheet.create({
     color: '#aaa',
     fontWeight: '600',
     marginHorizontal: 8,
+  },
+  drawText: {
+    color: '#FF9500',
+    fontSize: 16,
+    fontWeight: '700',
   },
   projectionStats: {
     flexDirection: 'row',
