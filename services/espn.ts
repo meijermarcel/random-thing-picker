@@ -162,7 +162,7 @@ async function fetchLeagueGames(sport: string, league: string, leagueName: strin
           awayLogo: awayTeamData?.team?.logo,
           startTime: new Date(event.date),
           league: leagueName,
-          leagueAbbr: league.toUpperCase(),
+          leagueAbbr: leagueName,
           sport: sport,
           homeRecord,
           awayRecord,
