@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, FlatList, ActivityIndicator, RefreshControl, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { Game, Pick, SportFilter as SportFilterType, PickMode, PickType } from '../../types/sports';
 import { fetchGames } from '../../services/espn';
@@ -133,6 +133,44 @@ export default function Sports() {
     }
   };
 
+  const handleAnalyzeAll = async () => {
+    if (games.length === 0) return;
+
+    setAnalyzing(true);
+
+    try {
+      const analyses = await analyzeGames(games);
+
+      const newPicks: Pick[] = games.map((game) => {
+        const analysis = analyses.get(game.id);
+        if (!analysis) {
+          const pickType: PickType = Math.random() < 0.5 ? 'home' : 'away';
+          return {
+            game,
+            pickType,
+            label: pickType === 'home' ? `${game.homeTeam} ML` : `${game.awayTeam} ML`,
+          };
+        }
+
+        return {
+          game,
+          pickType: analysis.pickType,
+          label: getAnalyzedPickLabel(game, analysis),
+          analysis,
+        };
+      });
+
+      router.push({
+        pathname: '/betslip',
+        params: { picks: JSON.stringify(newPicks) },
+      });
+    } catch (error) {
+      console.error('Analysis failed:', error);
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
   const selectedCount = selectedGames.size;
   const isPickDisabled = selectedCount === 0 || analyzing;
 
@@ -184,11 +222,36 @@ export default function Sports() {
         />
       )}
 
-      <PickButton
-        onPick={handlePick}
-        disabled={isPickDisabled}
-        label={getButtonLabel()}
-      />
+      {pickMode === 'analyzed' && games.length > 0 ? (
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            style={[styles.analyzeAllButton, analyzing && styles.buttonDisabled]}
+            onPress={handleAnalyzeAll}
+            disabled={analyzing}
+          >
+            <Text style={[styles.buttonText, analyzing && styles.buttonTextDisabled]}>
+              {analyzing ? 'Analyzing...' : `Analyze All (${games.length})`}
+            </Text>
+          </TouchableOpacity>
+          {selectedCount > 0 && (
+            <TouchableOpacity
+              style={[styles.analyzeSelectedButton, analyzing && styles.buttonDisabled]}
+              onPress={handlePick}
+              disabled={analyzing}
+            >
+              <Text style={[styles.buttonTextSecondary, analyzing && styles.buttonTextDisabled]}>
+                Selected ({selectedCount})
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      ) : (
+        <PickButton
+          onPick={handlePick}
+          disabled={isPickDisabled}
+          label={getButtonLabel()}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -210,5 +273,43 @@ const styles = StyleSheet.create({
   separator: {
     height: 1,
     backgroundColor: '#eee',
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    padding: 16,
+    gap: 10,
+  },
+  analyzeAllButton: {
+    flex: 1,
+    backgroundColor: '#007AFF',
+    padding: 18,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  analyzeSelectedButton: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#007AFF',
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  buttonTextSecondary: {
+    color: '#007AFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  buttonDisabled: {
+    backgroundColor: '#ccc',
+    borderColor: '#ccc',
+  },
+  buttonTextDisabled: {
+    color: '#888',
   },
 });
