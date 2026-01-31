@@ -134,3 +134,14 @@ export interface PickAnalysis {
   differential: number;
   projection: GameProjection; // Actual predicted scores
 }
+
+export type ParlayCategory = 'lock' | 'value' | 'sport' | 'longshot';
+
+export interface ParlayRecommendation {
+  id: string;
+  category: ParlayCategory;
+  title: string;
+  subtitle: string;
+  picks: Pick[];
+  icon: string;
+}
