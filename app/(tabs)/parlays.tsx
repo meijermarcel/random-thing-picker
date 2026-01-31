@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { router } from 'expo-router';
 import { Game, ParlayRecommendation } from '../../types/sports';
@@ -11,6 +11,14 @@ import { ParlayCard } from '../../components/ParlayCard';
 // Helper to get date string for comparison
 const getDateKey = (date: Date) => date.toISOString().split('T')[0];
 
+// Module-level cache that persists across component remounts
+interface ParlayCache {
+  dateKey: string;
+  parlays: ParlayRecommendation[];
+  gameCount: number;
+}
+let parlayCache: ParlayCache | null = null;
+
 export default function Parlays() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [parlays, setParlays] = useState<ParlayRecommendation[]>([]);
@@ -18,13 +26,14 @@ export default function Parlays() {
   const [refreshing, setRefreshing] = useState(false);
   const [gameCount, setGameCount] = useState(0);
   const [analyzingCount, setAnalyzingCount] = useState(0);
-  const loadedDateRef = useRef<string | null>(null);
 
   const loadParlays = useCallback(async (forceRefresh = false) => {
     const dateKey = getDateKey(selectedDate);
 
-    // Skip if we already have data for this date (unless force refresh)
-    if (!forceRefresh && loadedDateRef.current === dateKey) {
+    // Check module-level cache first (unless force refresh)
+    if (!forceRefresh && parlayCache && parlayCache.dateKey === dateKey) {
+      setParlays(parlayCache.parlays);
+      setGameCount(parlayCache.gameCount);
       return;
     }
 
@@ -34,7 +43,7 @@ export default function Parlays() {
 
     if (games.length === 0) {
       setParlays([]);
-      loadedDateRef.current = dateKey;
+      parlayCache = { dateKey, parlays: [], gameCount: 0 };
       return;
     }
 
@@ -46,13 +55,15 @@ export default function Parlays() {
     // Generate parlays
     const recommendations = generateParlays(games, analyses);
     setParlays(recommendations);
-    loadedDateRef.current = dateKey;
+
+    // Update module-level cache
+    parlayCache = { dateKey, parlays: recommendations, gameCount: games.length };
   }, [selectedDate]);
 
   useEffect(() => {
     const dateKey = getDateKey(selectedDate);
-    // Only show loading if we don't have data for this date
-    if (loadedDateRef.current !== dateKey) {
+    // Only show loading if we don't have cached data for this date
+    if (!parlayCache || parlayCache.dateKey !== dateKey) {
       setLoading(true);
       setAnalyzingCount(0);
     }
