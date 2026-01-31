@@ -676,9 +676,9 @@ export async function analyzeGame(game: Game): Promise<PickAnalysis> {
   );
 
   // Determine pick type based on projection
-  // For soccer, predict draw when margin is very small and teams are evenly matched
+  // For soccer, predict draw when projected margin is very small (< 0.5 goals)
   let pickType: PickType;
-  if (game.sport === 'soccer' && Math.abs(projection.projectedMargin) < 0.5 && differential < 8) {
+  if (game.sport === 'soccer' && Math.abs(projection.projectedMargin) < 0.5) {
     pickType = 'draw';
   } else {
     pickType = projection.projectedWinner === 'home' ? 'home' : 'away';
