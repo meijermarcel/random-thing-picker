@@ -29,17 +29,33 @@ export default function Parlays() {
   const [gameCount, setGameCount] = useState(0);
   const [analyzingCount, setAnalyzingCount] = useState(0);
   const [customLegs, setCustomLegs] = useState('8');
-  const [customSport, setCustomSport] = useState('all');
+  const [selectedLeagues, setSelectedLeagues] = useState<Set<string>>(new Set());
 
-  // Get available sports from cached games
-  const availableSports = parlayCache?.games
-    ? Array.from(new Set(parlayCache.games.map(g => g.sport)))
+  // Get available leagues from cached games
+  const availableLeagues = parlayCache?.games
+    ? Array.from(new Set(parlayCache.games.map(g => g.leagueAbbr)))
     : [];
 
-  // Get game count for selected sport
-  const sportGameCount = customSport === 'all'
+  // Get game count for selected leagues
+  const filteredGameCount = selectedLeagues.size === 0
     ? gameCount
-    : parlayCache?.games.filter(g => g.sport === customSport).length ?? 0;
+    : parlayCache?.games.filter(g => selectedLeagues.has(g.leagueAbbr)).length ?? 0;
+
+  const toggleLeague = (league: string) => {
+    setSelectedLeagues(prev => {
+      const next = new Set(prev);
+      if (next.has(league)) {
+        next.delete(league);
+      } else {
+        next.add(league);
+      }
+      return next;
+    });
+  };
+
+  const selectAllLeagues = () => {
+    setSelectedLeagues(new Set());
+  };
 
   const loadParlays = useCallback(async (forceRefresh = false) => {
     const dateKey = getDateKey(selectedDate);
@@ -78,7 +94,7 @@ export default function Parlays() {
     const numLegs = parseInt(customLegs, 10);
     if (isNaN(numLegs) || numLegs < 2 || !parlayCache) return;
 
-    const customParlay = buildCustomParlay(parlayCache.games, parlayCache.analyses, numLegs, customSport);
+    const customParlay = buildCustomParlay(parlayCache.games, parlayCache.analyses, numLegs, selectedLeagues);
     if (customParlay) {
       handleViewParlay(customParlay);
     }
@@ -151,7 +167,7 @@ export default function Parlays() {
             <Text style={styles.customTitle}>Custom Parlay</Text>
             <Text style={styles.customSubtitle}>Generate a parlay with your desired number of legs</Text>
 
-            {/* Sport Filter */}
+            {/* League Filter */}
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -159,30 +175,24 @@ export default function Parlays() {
               contentContainerStyle={styles.sportScrollContent}
             >
               <TouchableOpacity
-                style={[styles.sportChip, customSport === 'all' && styles.sportChipActive]}
-                onPress={() => setCustomSport('all')}
+                style={[styles.sportChip, selectedLeagues.size === 0 && styles.sportChipActive]}
+                onPress={selectAllLeagues}
               >
-                <Text style={[styles.sportChipText, customSport === 'all' && styles.sportChipTextActive]}>
+                <Text style={[styles.sportChipText, selectedLeagues.size === 0 && styles.sportChipTextActive]}>
                   All ({gameCount})
                 </Text>
               </TouchableOpacity>
-              {availableSports.map(sport => {
-                const count = parlayCache?.games.filter(g => g.sport === sport).length ?? 0;
-                const sportLabels: Record<string, string> = {
-                  basketball: 'NBA',
-                  football: 'NFL',
-                  hockey: 'NHL',
-                  baseball: 'MLB',
-                  soccer: 'Soccer',
-                };
+              {availableLeagues.map(league => {
+                const count = parlayCache?.games.filter(g => g.leagueAbbr === league).length ?? 0;
+                const isSelected = selectedLeagues.has(league);
                 return (
                   <TouchableOpacity
-                    key={sport}
-                    style={[styles.sportChip, customSport === sport && styles.sportChipActive]}
-                    onPress={() => setCustomSport(sport)}
+                    key={league}
+                    style={[styles.sportChip, isSelected && styles.sportChipActive]}
+                    onPress={() => toggleLeague(league)}
                   >
-                    <Text style={[styles.sportChipText, customSport === sport && styles.sportChipTextActive]}>
-                      {sportLabels[sport] || sport} ({count})
+                    <Text style={[styles.sportChipText, isSelected && styles.sportChipTextActive]}>
+                      {league} ({count})
                     </Text>
                   </TouchableOpacity>
                 );
@@ -202,16 +212,16 @@ export default function Parlays() {
               <TouchableOpacity
                 style={[
                   styles.customButton,
-                  parseInt(customLegs, 10) > sportGameCount && styles.customButtonDisabled
+                  parseInt(customLegs, 10) > filteredGameCount && styles.customButtonDisabled
                 ]}
                 onPress={handleGenerateCustom}
-                disabled={parseInt(customLegs, 10) > sportGameCount}
+                disabled={parseInt(customLegs, 10) > filteredGameCount}
               >
                 <Text style={styles.customButtonText}>Generate</Text>
               </TouchableOpacity>
             </View>
-            {parseInt(customLegs, 10) > sportGameCount && (
-              <Text style={styles.customError}>Only {sportGameCount} games available{customSport !== 'all' ? ` for this sport` : ''}</Text>
+            {parseInt(customLegs, 10) > filteredGameCount && (
+              <Text style={styles.customError}>Only {filteredGameCount} games available{selectedLeagues.size > 0 ? ` for selected leagues` : ''}</Text>
             )}
           </View>
         </ScrollView>

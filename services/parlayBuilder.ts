@@ -226,16 +226,16 @@ function buildMegaParlay(games: AnalyzedGame[]): ParlayRecommendation | null {
   };
 }
 
-// Build a custom parlay with a specific number of legs and optional sport filter
+// Build a custom parlay with a specific number of legs and optional league filter
 export function buildCustomParlay(
   games: Game[],
   analyses: Map<string, PickAnalysis>,
   numLegs: number,
-  sportFilter?: string // 'all' or specific sport like 'basketball', 'football', etc.
+  leagueFilter?: Set<string> // Set of league abbreviations like 'NBA', 'NFL', etc. Empty or undefined = all
 ): ParlayRecommendation | null {
-  // Filter by sport if specified
-  const filteredGames = sportFilter && sportFilter !== 'all'
-    ? games.filter(g => g.sport === sportFilter)
+  // Filter by league if specified
+  const filteredGames = leagueFilter && leagueFilter.size > 0
+    ? games.filter(g => leagueFilter.has(g.leagueAbbr))
     : games;
 
   const analyzedGames: AnalyzedGame[] = filteredGames
