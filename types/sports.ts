@@ -26,7 +26,7 @@ export interface Game {
   odds?: GameOdds;
 }
 
-export type PickType = 'home' | 'away' | 'home_cover' | 'away_cover' | 'over' | 'under';
+export type PickType = 'home' | 'away' | 'draw' | 'home_cover' | 'away_cover' | 'over' | 'under';
 
 export interface Pick {
   game: Game;

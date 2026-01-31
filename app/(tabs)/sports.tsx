@@ -51,10 +51,11 @@ export default function Sports() {
 
   const handleRandomPick = () => {
     const gamesToPick = Array.from(selectedGames.values());
-    const pickTypes: Array<PickType> = [
-      'home', 'away', 'home_cover', 'away_cover', 'over', 'under'
-    ];
     const newPicks: Pick[] = gamesToPick.map((game) => {
+      // Include draw option for soccer games
+      const pickTypes: Array<PickType> = game.sport === 'soccer'
+        ? ['home', 'away', 'draw', 'over', 'under']
+        : ['home', 'away', 'home_cover', 'away_cover', 'over', 'under'];
       const pickType = pickTypes[Math.floor(Math.random() * pickTypes.length)];
       let label: string;
       switch (pickType) {
@@ -63,6 +64,9 @@ export default function Sports() {
           break;
         case 'away':
           label = `${game.awayTeam} ML`;
+          break;
+        case 'draw':
+          label = 'Draw';
           break;
         case 'home_cover':
           label = `${game.homeTeam} to cover`;

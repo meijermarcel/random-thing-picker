@@ -479,6 +479,37 @@ function generateEnhancedReasoning(
   game: Game
 ): string[] {
   const reasons: string[] = [];
+
+  // Check if this is likely a draw prediction (soccer with very close margin)
+  const isDrawPrediction = game.sport === 'soccer' && Math.abs(projection.projectedMargin) < 0.5;
+
+  if (isDrawPrediction) {
+    // Draw-specific reasoning
+    reasons.push('Teams are evenly matched');
+
+    // Similar records
+    const homeWinPct = homeStats.winPct;
+    const awayWinPct = awayStats.winPct;
+    if (Math.abs(homeWinPct - awayWinPct) < 0.15) {
+      reasons.push(`Similar form: ${homeStats.teamName} ${(homeWinPct * 100).toFixed(0)}% vs ${awayStats.teamName} ${(awayWinPct * 100).toFixed(0)}%`);
+    }
+
+    // H2H draws
+    if (h2h && h2h.recentMeetings >= 2) {
+      const draws = h2h.recentMeetings - h2h.wins - h2h.losses;
+      if (draws > 0) {
+        reasons.push(`${draws} draw(s) in last ${h2h.recentMeetings} meetings`);
+      }
+    }
+
+    // Low scoring tendency
+    if (projection.totalPoints <= 2.5) {
+      reasons.push('Low-scoring matchup expected');
+    }
+
+    return reasons.slice(0, 5);
+  }
+
   const winner = projection.projectedWinner === 'home' ? homeStats : awayStats;
   const loser = projection.projectedWinner === 'home' ? awayStats : homeStats;
   const winnerAdvanced = projection.projectedWinner === 'home' ? homeAdvanced : awayAdvanced;
@@ -645,7 +676,13 @@ export async function analyzeGame(game: Game): Promise<PickAnalysis> {
   );
 
   // Determine pick type based on projection
-  const pickType: PickType = projection.projectedWinner === 'home' ? 'home' : 'away';
+  // For soccer, predict draw when margin is very small and teams are evenly matched
+  let pickType: PickType;
+  if (game.sport === 'soccer' && Math.abs(projection.projectedMargin) < 0.5 && differential < 8) {
+    pickType = 'draw';
+  } else {
+    pickType = projection.projectedWinner === 'home' ? 'home' : 'away';
+  }
 
   // Generate enhanced reasoning
   const reasoning = generateEnhancedReasoning(
@@ -691,13 +728,20 @@ export async function analyzeGames(games: Game[]): Promise<Map<string, PickAnaly
 export function getAnalyzedPickLabel(game: Game, analysis: PickAnalysis): string {
   if (!analysis.projection) {
     // Fallback for old format
+    if (analysis.pickType === 'draw') return 'Draw';
     return analysis.pickType === 'home' ? `${game.homeTeam} wins` : `${game.awayTeam} wins`;
   }
-  
+
+  // Handle draw prediction
+  if (analysis.pickType === 'draw') {
+    const p = analysis.projection;
+    return `Draw (${p.awayPoints}-${p.homePoints})`;
+  }
+
   const p = analysis.projection;
   const winner = p.projectedWinner === 'home' ? game.homeTeam : game.awayTeam;
   const margin = Math.abs(p.projectedMargin);
-  
+
   return `${winner} by ${margin}`;
 }
 
