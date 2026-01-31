@@ -10,6 +10,7 @@ const FILTERS: { value: SportFilterType; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'nfl', label: 'NFL' },
   { value: 'nba', label: 'NBA' },
+  { value: 'ncaam', label: 'NCAAM' },
   { value: 'mlb', label: 'MLB' },
   { value: 'nhl', label: 'NHL' },
   { value: 'soccer', label: 'Soccer' },
