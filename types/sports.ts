@@ -135,7 +135,7 @@ export interface PickAnalysis {
   projection: GameProjection; // Actual predicted scores
 }
 
-export type ParlayCategory = 'lock' | 'value' | 'sport' | 'longshot';
+export type ParlayCategory = 'lock' | 'value' | 'sport' | 'longshot' | 'mega' | 'custom';
 
 export interface ParlayRecommendation {
   id: string;

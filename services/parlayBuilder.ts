@@ -42,6 +42,12 @@ export function generateParlays(
     if (longshotParlay) parlays.push(longshotParlay);
   }
 
+  // Mega - only if 12+ games
+  if (analyzedGames.length >= 12) {
+    const megaParlay = buildMegaParlay(analyzedGames);
+    if (megaParlay) parlays.push(megaParlay);
+  }
+
   return parlays;
 }
 
@@ -175,6 +181,113 @@ function buildLongshotParlay(games: AnalyzedGame[]): ParlayRecommendation | null
     subtitle: `${picks.length} legs • High risk/reward`,
     picks,
     icon: '🎰',
+  };
+}
+
+function buildMegaParlay(games: AnalyzedGame[]): ParlayRecommendation | null {
+  // Use all medium+ confidence games for maximum legs
+  const qualified = games
+    .filter(g => g.analysis.confidence !== 'low')
+    .sort((a, b) => b.analysis.differential - a.analysis.differential);
+
+  if (qualified.length < 12) return null;
+
+  // Try to get variety - different sports first
+  const selected: AnalyzedGame[] = [];
+  const usedSports = new Set<string>();
+
+  // First pass: cycle through sports
+  for (const g of qualified) {
+    if (!usedSports.has(g.game.sport) && selected.length < 12) {
+      selected.push(g);
+      usedSports.add(g.game.sport);
+    }
+  }
+
+  // Second pass: fill remaining spots
+  for (const g of qualified) {
+    if (selected.length >= 12) break;
+    if (!selected.includes(g)) {
+      selected.push(g);
+    }
+  }
+
+  if (selected.length < 12) return null;
+
+  const picks = selected.map(g => toPick(g));
+
+  return {
+    id: 'mega',
+    category: 'mega',
+    title: 'Mega Parlay',
+    subtitle: `${picks.length} legs • Jackpot mode`,
+    picks,
+    icon: '🚀',
+  };
+}
+
+// Build a custom parlay with a specific number of legs
+export function buildCustomParlay(
+  games: Game[],
+  analyses: Map<string, PickAnalysis>,
+  numLegs: number
+): ParlayRecommendation | null {
+  const analyzedGames: AnalyzedGame[] = games
+    .filter(g => analyses.has(g.id))
+    .map(g => ({ game: g, analysis: analyses.get(g.id)! }));
+
+  // Sort by differential (best picks first)
+  const sorted = analyzedGames
+    .filter(g => g.analysis.confidence !== 'low')
+    .sort((a, b) => b.analysis.differential - a.analysis.differential);
+
+  if (sorted.length < numLegs) {
+    // Not enough qualified games, include low confidence
+    const allSorted = analyzedGames
+      .sort((a, b) => b.analysis.differential - a.analysis.differential);
+
+    if (allSorted.length < numLegs) return null;
+
+    const picks = allSorted.slice(0, numLegs).map(g => toPick(g));
+    return {
+      id: `custom-${numLegs}`,
+      category: 'custom',
+      title: `Custom ${numLegs}-Leg`,
+      subtitle: `${picks.length} legs • Your pick`,
+      picks,
+      icon: '✨',
+    };
+  }
+
+  // Try to get variety - different sports
+  const selected: AnalyzedGame[] = [];
+  const usedSports = new Set<string>();
+
+  // First pass: one per sport
+  for (const g of sorted) {
+    if (!usedSports.has(g.game.sport) && selected.length < numLegs) {
+      selected.push(g);
+      usedSports.add(g.game.sport);
+    }
+  }
+
+  // Second pass: fill remaining spots
+  for (const g of sorted) {
+    if (selected.length >= numLegs) break;
+    if (!selected.includes(g)) {
+      selected.push(g);
+    }
+  }
+
+  const picks = selected.map(g => toPick(g));
+
+  return {
+    id: `custom-${numLegs}`,
+    category: 'custom',
+    title: `Custom ${numLegs}-Leg`,
+    subtitle: `${picks.length} legs • Your pick`,
+    picks,
+    icon: '✨',
   };
 }
 
