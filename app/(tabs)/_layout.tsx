@@ -27,6 +27,15 @@ export default function TabLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="parlays"
+        options={{
+          title: 'Parlays',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="layers" size={size} color={color} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }
