@@ -32,6 +32,7 @@ const CACHE_TTL = {
 export const ENDPOINTS: Record<Exclude<SportFilter, 'all'>, { sport: string; league: string; name: string }> = {
   nfl: { sport: 'football', league: 'nfl', name: 'NFL' },
   nba: { sport: 'basketball', league: 'nba', name: 'NBA' },
+  ncaam: { sport: 'basketball', league: 'mens-college-basketball', name: 'NCAAM' },
   mlb: { sport: 'baseball', league: 'mlb', name: 'MLB' },
   nhl: { sport: 'hockey', league: 'nhl', name: 'NHL' },
   soccer: { sport: 'soccer', league: 'eng.1', name: 'Premier League' },

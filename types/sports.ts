@@ -35,7 +35,7 @@ export interface Pick {
   analysis?: PickAnalysis;
 }
 
-export type SportFilter = 'all' | 'nfl' | 'nba' | 'mlb' | 'nhl' | 'soccer';
+export type SportFilter = 'all' | 'nfl' | 'nba' | 'ncaam' | 'mlb' | 'nhl' | 'soccer';
 
 export type PickMode = 'random' | 'analyzed';
 
