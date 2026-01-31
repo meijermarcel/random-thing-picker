@@ -226,7 +226,7 @@ export default function BetSlip() {
           <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
             <Text style={styles.shareButtonText}>Share</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.button} onPress={() => router.replace('/(tabs)/sports')}>
+          <TouchableOpacity style={styles.button} onPress={() => router.back()}>
             <Text style={styles.buttonText}>Done</Text>
           </TouchableOpacity>
         </View>
