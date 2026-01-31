@@ -133,7 +133,7 @@ function buildSportParlays(games: AnalyzedGame[]): ParlayRecommendation[] {
       id: `sport-${sport}`,
       category: 'sport',
       title: `${info.name} Special`,
-      subtitle: `${picks.length} legs • All ${info.name.toLowerCase()}`,
+      subtitle: `${picks.length} legs • All ${info.name}`,
       picks,
       icon: info.icon,
     });
