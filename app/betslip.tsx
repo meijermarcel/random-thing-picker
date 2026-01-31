@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, SafeAreaView, FlatList, TouchableOpacity, Image, Share } from 'react-native';
+import { useState } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, FlatList, TouchableOpacity, Image, Share, Modal, Pressable } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Pick, Confidence } from '../types/sports';
@@ -30,7 +31,8 @@ function getConfidenceIcon(confidence: Confidence): string {
 export default function BetSlip() {
   const { picks: picksParam } = useLocalSearchParams<{ picks: string }>();
   const picks: Pick[] = picksParam ? JSON.parse(picksParam) : [];
-  
+  const [showConfidenceInfo, setShowConfidenceInfo] = useState(false);
+
   // Check if any picks have analysis with projections
   const hasAnalysis = picks.some(pick => pick.analysis?.projection);
 
@@ -79,11 +81,14 @@ export default function BetSlip() {
               <View style={styles.cardHeader}>
                 <Text style={styles.league}>{item.game.leagueAbbr}</Text>
                 {item.analysis && (
-                  <View style={[
-                    styles.confidenceBadge,
-                    { backgroundColor: getConfidenceColor(item.analysis.confidence) + '20' }
-                  ]}>
-                    <Ionicons 
+                  <TouchableOpacity
+                    onPress={() => setShowConfidenceInfo(true)}
+                    style={[
+                      styles.confidenceBadge,
+                      { backgroundColor: getConfidenceColor(item.analysis.confidence) + '20' }
+                    ]}
+                  >
+                    <Ionicons
                       name={getConfidenceIcon(item.analysis.confidence) as any}
                       size={12}
                       color={getConfidenceColor(item.analysis.confidence)}
@@ -94,7 +99,8 @@ export default function BetSlip() {
                     ]}>
                       {item.analysis.confidence.charAt(0).toUpperCase() + item.analysis.confidence.slice(1)}
                     </Text>
-                  </View>
+                    <Ionicons name="information-circle-outline" size={12} color={getConfidenceColor(item.analysis.confidence)} />
+                  </TouchableOpacity>
                 )}
               </View>
               
@@ -220,6 +226,73 @@ export default function BetSlip() {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Confidence Explanation Modal */}
+      <Modal
+        visible={showConfidenceInfo}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowConfidenceInfo(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setShowConfidenceInfo(false)}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Confidence Levels</Text>
+              <TouchableOpacity onPress={() => setShowConfidenceInfo(false)}>
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalIntro}>
+              Confidence is based on how much the analysis factors agree on a pick.
+            </Text>
+
+            <View style={styles.confidenceRow}>
+              <View style={[styles.confidenceIndicator, { backgroundColor: '#34C759' }]} />
+              <View style={styles.confidenceInfo}>
+                <Text style={styles.confidenceTitle}>High Confidence</Text>
+                <Text style={styles.confidenceDesc}>
+                  Score differential {'>'} 15 points. Multiple factors strongly favor one team: better record, home advantage, rest edge, favorable H2H, and/or opponent injuries.
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.confidenceRow}>
+              <View style={[styles.confidenceIndicator, { backgroundColor: '#FF9500' }]} />
+              <View style={styles.confidenceInfo}>
+                <Text style={styles.confidenceTitle}>Medium Confidence</Text>
+                <Text style={styles.confidenceDesc}>
+                  Score differential 5-15 points. One team has a clear edge, but some factors are neutral or conflicting.
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.confidenceRow}>
+              <View style={[styles.confidenceIndicator, { backgroundColor: '#FF3B30' }]} />
+              <View style={styles.confidenceInfo}>
+                <Text style={styles.confidenceTitle}>Low Confidence</Text>
+                <Text style={styles.confidenceDesc}>
+                  Score differential {'<'} 5 points. Teams are evenly matched. This is essentially a toss-up - proceed with caution.
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.factorsSection}>
+              <Text style={styles.factorsTitle}>Factors Analyzed:</Text>
+              <Text style={styles.factorsList}>
+                • Advanced stats (20%) - shooting %, efficiency{'\n'}
+                • Win percentage (15%){'\n'}
+                • Home/away splits (15%){'\n'}
+                • Recent form & streaks (15%){'\n'}
+                • Rest & schedule (10%){'\n'}
+                • Head-to-head history (10%){'\n'}
+                • Scoring margin (10%){'\n'}
+                • Injuries (5%)
+              </Text>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -492,5 +565,77 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxWidth: 400,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#000',
+  },
+  modalIntro: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  confidenceRow: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  confidenceIndicator: {
+    width: 4,
+    borderRadius: 2,
+    marginRight: 12,
+  },
+  confidenceInfo: {
+    flex: 1,
+  },
+  confidenceTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  confidenceDesc: {
+    fontSize: 13,
+    color: '#666',
+    lineHeight: 18,
+  },
+  factorsSection: {
+    marginTop: 8,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  factorsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  factorsList: {
+    fontSize: 13,
+    color: '#666',
+    lineHeight: 20,
   },
 });
