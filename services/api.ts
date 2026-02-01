@@ -196,10 +196,15 @@ export async function checkHealth(): Promise<{ status: string; version: string; 
 
 // API service object for class-style access
 export const apiService = {
-  async getPerformance(startDate: string, endDate: string): Promise<any> {
-    const response = await fetch(
-      `${API_BASE}/performance?start_date=${startDate}&end_date=${endDate}`
-    );
+  async getPerformance(startDate: string, endDate: string, league?: string): Promise<any> {
+    const params = new URLSearchParams({
+      start_date: startDate,
+      end_date: endDate,
+    });
+    if (league && league !== 'all') {
+      params.append('league', league);
+    }
+    const response = await fetch(`${API_BASE}/performance?${params}`);
     if (!response.ok) throw new Error('Failed to fetch performance');
     return response.json();
   },

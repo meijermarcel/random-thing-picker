@@ -8,9 +8,20 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { apiService } from '../../services/api';
 
-type Period = 'today' | '7d' | '30d' | 'all';
+type Period = 'day' | '7d' | '30d' | 'all';
+type League = 'all' | 'basketball' | 'football' | 'hockey' | 'baseball' | 'soccer';
+
+const LEAGUES: { key: League; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'basketball', label: 'NBA' },
+  { key: 'football', label: 'NFL' },
+  { key: 'hockey', label: 'NHL' },
+  { key: 'baseball', label: 'MLB' },
+  { key: 'soccer', label: 'Soccer' },
+];
 
 interface PerformanceSummary {
   total_picks: number;
@@ -53,36 +64,61 @@ interface PerformanceData {
   picks: PickDetail[];
 }
 
+function formatDisplayDate(date: Date): string {
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  if (date.toDateString() === today.toDateString()) {
+    return 'Today';
+  } else if (date.toDateString() === yesterday.toDateString()) {
+    return 'Yesterday';
+  } else {
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+}
+
+function formatApiDate(date: Date): string {
+  return date.toISOString().split('T')[0];
+}
+
 export default function PerformanceScreen() {
   const [period, setPeriod] = useState<Period>('7d');
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [league, setLeague] = useState<League>('all');
   const [data, setData] = useState<PerformanceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchPerformance = async () => {
     try {
-      const today = new Date();
       let startDate: Date;
+      let endDate: Date;
 
-      switch (period) {
-        case 'today':
-          startDate = today;
-          break;
-        case '7d':
-          startDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-          break;
-        case '30d':
-          startDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-          break;
-        case 'all':
-          startDate = new Date('2020-01-01');
-          break;
+      if (period === 'day') {
+        startDate = selectedDate;
+        endDate = selectedDate;
+      } else {
+        endDate = new Date();
+        switch (period) {
+          case '7d':
+            startDate = new Date(endDate.getTime() - 7 * 24 * 60 * 60 * 1000);
+            break;
+          case '30d':
+            startDate = new Date(endDate.getTime() - 30 * 24 * 60 * 60 * 1000);
+            break;
+          case 'all':
+            startDate = new Date('2020-01-01');
+            break;
+          default:
+            startDate = new Date(endDate.getTime() - 7 * 24 * 60 * 60 * 1000);
+        }
       }
 
-      const formatDate = (d: Date) => d.toISOString().split('T')[0];
       const response = await apiService.getPerformance(
-        formatDate(startDate),
-        formatDate(today)
+        formatApiDate(startDate),
+        formatApiDate(endDate),
+        league === 'all' ? undefined : league
       );
       setData(response);
     } catch (error) {
@@ -96,11 +132,20 @@ export default function PerformanceScreen() {
   useEffect(() => {
     setLoading(true);
     fetchPerformance();
-  }, [period]);
+  }, [period, selectedDate, league]);
 
   const onRefresh = () => {
     setRefreshing(true);
     fetchPerformance();
+  };
+
+  const navigateDay = (direction: number) => {
+    const newDate = new Date(selectedDate);
+    newDate.setDate(newDate.getDate() + direction);
+    // Don't allow future dates
+    if (newDate <= new Date()) {
+      setSelectedDate(newDate);
+    }
   };
 
   if (loading) {
@@ -123,18 +168,59 @@ export default function PerformanceScreen() {
     >
       {/* Period Selector */}
       <View style={styles.periodSelector}>
-        {(['today', '7d', '30d', 'all'] as Period[]).map((p) => (
+        {(['day', '7d', '30d', 'all'] as Period[]).map((p) => (
           <TouchableOpacity
             key={p}
             style={[styles.periodButton, period === p && styles.periodButtonActive]}
             onPress={() => setPeriod(p)}
           >
             <Text style={[styles.periodText, period === p && styles.periodTextActive]}>
-              {p === 'today' ? 'Today' : p === '7d' ? '7 Days' : p === '30d' ? '30 Days' : 'All Time'}
+              {p === 'day' ? 'Day' : p === '7d' ? '7 Days' : p === '30d' ? '30 Days' : 'All Time'}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
+
+      {/* Day Picker - only show when period is 'day' */}
+      {period === 'day' && (
+        <View style={styles.dayPicker}>
+          <TouchableOpacity onPress={() => navigateDay(-1)} style={styles.dayArrow}>
+            <Ionicons name="chevron-back" size={24} color="#007AFF" />
+          </TouchableOpacity>
+          <Text style={styles.dayText}>{formatDisplayDate(selectedDate)}</Text>
+          <TouchableOpacity
+            onPress={() => navigateDay(1)}
+            style={styles.dayArrow}
+            disabled={selectedDate.toDateString() === new Date().toDateString()}
+          >
+            <Ionicons
+              name="chevron-forward"
+              size={24}
+              color={selectedDate.toDateString() === new Date().toDateString() ? '#CCC' : '#007AFF'}
+            />
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* League Filter */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.leagueScroll}
+        contentContainerStyle={styles.leagueContainer}
+      >
+        {LEAGUES.map((l) => (
+          <TouchableOpacity
+            key={l.key}
+            style={[styles.leagueButton, league === l.key && styles.leagueButtonActive]}
+            onPress={() => setLeague(l.key)}
+          >
+            <Text style={[styles.leagueText, league === l.key && styles.leagueTextActive]}>
+              {l.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
 
       {/* Stats Header */}
       <View style={styles.statsContainer}>
@@ -159,7 +245,9 @@ export default function PerformanceScreen() {
       </View>
 
       {/* Results List */}
-      <Text style={styles.sectionTitle}>Recent Picks</Text>
+      <Text style={styles.sectionTitle}>
+        {period === 'day' ? `Picks for ${formatDisplayDate(selectedDate)}` : 'Recent Picks'}
+      </Text>
       {picks.length === 0 ? (
         <Text style={styles.emptyText}>No completed picks in this period</Text>
       ) : (
@@ -232,6 +320,49 @@ const styles = StyleSheet.create({
   periodTextActive: {
     color: '#FFF',
   },
+  dayPicker: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 8,
+    gap: 16,
+  },
+  dayArrow: {
+    padding: 8,
+  },
+  dayText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000',
+    minWidth: 100,
+    textAlign: 'center',
+  },
+  leagueScroll: {
+    maxHeight: 50,
+  },
+  leagueContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 8,
+  },
+  leagueButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#E5E5EA',
+    marginRight: 8,
+  },
+  leagueButtonActive: {
+    backgroundColor: '#34C759',
+  },
+  leagueText: {
+    color: '#6B6B6B',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  leagueTextActive: {
+    color: '#FFF',
+  },
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -239,6 +370,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     backgroundColor: '#FFF',
     marginHorizontal: 16,
+    marginTop: 8,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
