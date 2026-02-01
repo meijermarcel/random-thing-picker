@@ -1,6 +1,5 @@
 // API service for RTP backend
-// Update this URL once deployed to Railway
-const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://rtp-api.onrender.com';
 
 export interface APIGame {
   id: string;
