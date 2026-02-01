@@ -43,6 +43,8 @@ interface PickDetail {
   spread_result: 'win' | 'loss' | null;
   home_score: number | null;
   away_score: number | null;
+  home_score_predicted: number | null;
+  away_score_predicted: number | null;
 }
 
 interface PerformanceData {
@@ -178,9 +180,16 @@ export default function PerformanceScreen() {
               {pick.odds && <Text style={styles.pickOdds}> ({pick.odds > 0 ? '+' : ''}{pick.odds})</Text>}
             </Text>
             {pick.home_score !== null && pick.away_score !== null && (
-              <Text style={styles.pickScore}>
-                Final: {pick.away_score} - {pick.home_score}
-              </Text>
+              <View style={styles.scoresContainer}>
+                <Text style={styles.pickScore}>
+                  Final: {pick.away_score} - {pick.home_score}
+                </Text>
+                {pick.home_score_predicted !== null && pick.away_score_predicted !== null && (
+                  <Text style={styles.predictedScore}>
+                    Predicted: {pick.away_score_predicted.toFixed(1)} - {pick.home_score_predicted.toFixed(1)}
+                  </Text>
+                )}
+              </View>
             )}
           </View>
         ))
@@ -325,9 +334,17 @@ const styles = StyleSheet.create({
   pickOdds: {
     color: '#6B6B6B',
   },
+  scoresContainer: {
+    marginTop: 8,
+  },
   pickScore: {
-    color: '#6B6B6B',
+    color: '#000',
     fontSize: 14,
-    marginTop: 4,
+    fontWeight: '600',
+  },
+  predictedScore: {
+    color: '#6B6B6B',
+    fontSize: 13,
+    marginTop: 2,
   },
 });
