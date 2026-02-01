@@ -319,7 +319,7 @@ export default function PerformanceScreen() {
                   <Text style={styles.teamScore}>{pick.away_score}</Text>
                 )}
                 {pick.away_score_predicted !== null && (
-                  <Text style={styles.predictedTeamScore}>{pick.away_score_predicted.toFixed(0)}</Text>
+                  <Text style={styles.predictedTeamScore}>{pick.away_score_predicted.toFixed(1)}</Text>
                 )}
               </View>
 
@@ -346,7 +346,7 @@ export default function PerformanceScreen() {
                   <Text style={styles.teamScore}>{pick.home_score}</Text>
                 )}
                 {pick.home_score_predicted !== null && (
-                  <Text style={styles.predictedTeamScore}>{pick.home_score_predicted.toFixed(0)}</Text>
+                  <Text style={styles.predictedTeamScore}>{pick.home_score_predicted.toFixed(1)}</Text>
                 )}
               </View>
             </View>
