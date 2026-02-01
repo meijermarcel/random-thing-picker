@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { apiService } from '../../services/api';
@@ -47,7 +48,13 @@ interface PickDetail {
   league: string;
   home_team: string;
   away_team: string;
+  home_team_abbr: string;
+  away_team_abbr: string;
+  home_team_logo: string | null;
+  away_team_logo: string | null;
   pick: string;
+  pick_abbr: string;
+  pick_is_home: boolean;
   confidence: string;
   odds: number | null;
   spread: number | null;
@@ -285,6 +292,7 @@ export default function PerformanceScreen() {
       ) : (
         picks.map((pick) => (
           <View key={pick.id} style={styles.pickCard}>
+            {/* Header with result badge and metadata */}
             <View style={styles.pickHeader}>
               <View style={[styles.resultBadge, pick.result === 'win' ? styles.winBadge : styles.lossBadge]}>
                 <Text style={styles.resultText}>{pick.result === 'win' ? 'W' : 'L'}</Text>
@@ -292,25 +300,68 @@ export default function PerformanceScreen() {
               <Text style={styles.pickLeague}>{pick.league}</Text>
               <Text style={styles.pickDate}>{pick.date}</Text>
             </View>
-            <Text style={styles.pickTeams}>
-              {pick.away_team} @ {pick.home_team}
-            </Text>
-            <Text style={styles.pickSelection}>
-              Pick: <Text style={styles.pickTeamName}>{pick.pick}</Text>
-              {pick.odds && <Text style={styles.pickOdds}> ({pick.odds > 0 ? '+' : ''}{pick.odds})</Text>}
-            </Text>
-            {pick.home_score !== null && pick.away_score !== null && (
-              <View style={styles.scoresContainer}>
-                <Text style={styles.pickScore}>
-                  Final: {pick.away_score} - {pick.home_score}
+
+            {/* Matchup with logos and scores */}
+            <View style={styles.matchupContainer}>
+              {/* Away Team */}
+              <View style={styles.teamColumn}>
+                {pick.away_team_logo ? (
+                  <Image source={{ uri: pick.away_team_logo }} style={styles.teamLogo} />
+                ) : (
+                  <View style={styles.logoPlaceholder}>
+                    <Text style={styles.logoPlaceholderText}>{pick.away_team_abbr?.charAt(0)}</Text>
+                  </View>
+                )}
+                <Text style={[styles.teamAbbr, !pick.pick_is_home && styles.pickedTeam]}>
+                  {pick.away_team_abbr}
                 </Text>
-                {pick.home_score_predicted !== null && pick.away_score_predicted !== null && (
-                  <Text style={styles.predictedScore}>
-                    Predicted: {pick.away_score_predicted.toFixed(1)} - {pick.home_score_predicted.toFixed(1)}
-                  </Text>
+                {pick.away_score !== null && (
+                  <Text style={styles.teamScore}>{pick.away_score}</Text>
+                )}
+                {pick.away_score_predicted !== null && (
+                  <Text style={styles.predictedTeamScore}>{pick.away_score_predicted.toFixed(0)}</Text>
                 )}
               </View>
-            )}
+
+              {/* VS / @ */}
+              <View style={styles.vsColumn}>
+                <Text style={styles.vsText}>@</Text>
+                {pick.home_score !== null && <Text style={styles.finalLabel}>Final</Text>}
+                {pick.home_score_predicted !== null && <Text style={styles.predLabel}>Pred</Text>}
+              </View>
+
+              {/* Home Team */}
+              <View style={styles.teamColumn}>
+                {pick.home_team_logo ? (
+                  <Image source={{ uri: pick.home_team_logo }} style={styles.teamLogo} />
+                ) : (
+                  <View style={styles.logoPlaceholder}>
+                    <Text style={styles.logoPlaceholderText}>{pick.home_team_abbr?.charAt(0)}</Text>
+                  </View>
+                )}
+                <Text style={[styles.teamAbbr, pick.pick_is_home && styles.pickedTeam]}>
+                  {pick.home_team_abbr}
+                </Text>
+                {pick.home_score !== null && (
+                  <Text style={styles.teamScore}>{pick.home_score}</Text>
+                )}
+                {pick.home_score_predicted !== null && (
+                  <Text style={styles.predictedTeamScore}>{pick.home_score_predicted.toFixed(0)}</Text>
+                )}
+              </View>
+            </View>
+
+            {/* Pick info */}
+            <View style={styles.pickInfoRow}>
+              <Text style={styles.pickLabel}>
+                Pick: <Text style={styles.pickTeamName}>{pick.pick_abbr}</Text>
+              </Text>
+              {pick.odds && (
+                <Text style={styles.pickOdds}>
+                  {pick.odds > 0 ? '+' : ''}{pick.odds}
+                </Text>
+              )}
+            </View>
           </View>
         ))
       )}
@@ -496,34 +547,93 @@ const styles = StyleSheet.create({
     color: '#6B6B6B',
     fontSize: 12,
   },
-  pickTeams: {
-    color: '#000',
-    fontSize: 16,
+  matchupContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    paddingVertical: 12,
+  },
+  teamColumn: {
+    alignItems: 'center',
+    width: 80,
+  },
+  teamLogo: {
+    width: 48,
+    height: 48,
+    marginBottom: 6,
+  },
+  logoPlaceholder: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#E5E5EA',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  logoPlaceholderText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#6B6B6B',
+  },
+  teamAbbr: {
+    fontSize: 14,
     fontWeight: '600',
+    color: '#000',
     marginBottom: 4,
   },
-  pickSelection: {
-    color: '#6B6B6B',
+  pickedTeam: {
+    color: '#007AFF',
+  },
+  teamScore: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  predictedTeamScore: {
     fontSize: 14,
+    color: '#6B6B6B',
+    marginTop: 2,
+  },
+  vsColumn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  vsText: {
+    fontSize: 14,
+    color: '#6B6B6B',
+    marginBottom: 8,
+  },
+  finalLabel: {
+    fontSize: 10,
+    color: '#6B6B6B',
+    marginTop: 24,
+  },
+  predLabel: {
+    fontSize: 10,
+    color: '#6B6B6B',
+    marginTop: 4,
+  },
+  pickInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#F2F2F7',
+    paddingTop: 12,
+    marginTop: 4,
+  },
+  pickLabel: {
+    fontSize: 14,
+    color: '#6B6B6B',
   },
   pickTeamName: {
     color: '#007AFF',
     fontWeight: '600',
   },
   pickOdds: {
-    color: '#6B6B6B',
-  },
-  scoresContainer: {
-    marginTop: 8,
-  },
-  pickScore: {
-    color: '#000',
     fontSize: 14,
-    fontWeight: '600',
-  },
-  predictedScore: {
     color: '#6B6B6B',
-    fontSize: 13,
-    marginTop: 2,
   },
 });
