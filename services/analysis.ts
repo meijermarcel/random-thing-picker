@@ -735,12 +735,12 @@ export function getAnalyzedPickLabel(game: Game, analysis: PickAnalysis): string
   // Handle draw prediction
   if (analysis.pickType === 'draw') {
     const p = analysis.projection;
-    return `Draw (${p.awayPoints}-${p.homePoints})`;
+    return `Draw (${Number(p.awayPoints).toFixed(1)}-${Number(p.homePoints).toFixed(1)})`;
   }
 
   const p = analysis.projection;
   const winner = p.projectedWinner === 'home' ? game.homeTeam : game.awayTeam;
-  const margin = Math.abs(p.projectedMargin);
+  const margin = Math.abs(p.projectedMargin).toFixed(1);
 
   return `${winner} by ${margin}`;
 }
@@ -750,7 +750,7 @@ export function formatProjectedScore(game: Game, analysis: PickAnalysis): string
   if (!analysis.projection) {
     return '';
   }
-  
+
   const p = analysis.projection;
-  return `${game.awayTeam} ${p.awayPoints} - ${game.homeTeam} ${p.homePoints}`;
+  return `${game.awayTeam} ${Number(p.awayPoints).toFixed(1)} - ${game.homeTeam} ${Number(p.homePoints).toFixed(1)}`;
 }

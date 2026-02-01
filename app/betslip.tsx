@@ -42,8 +42,8 @@ export default function BetSlip() {
       
       if (pick.analysis?.projection) {
         const p = pick.analysis.projection;
-        line += `\nProjected: ${pick.game.awayTeam} ${p.awayPoints} - ${pick.game.homeTeam} ${p.homePoints}`;
-        line += `\nTotal: ${p.totalPoints} | Margin: ${p.projectedWinner === 'home' ? pick.game.homeTeam : pick.game.awayTeam} by ${Math.abs(p.projectedMargin)}`;
+        line += `\nProjected: ${pick.game.awayTeam} ${Number(p.awayPoints).toFixed(1)} - ${pick.game.homeTeam} ${Number(p.homePoints).toFixed(1)}`;
+        line += `\nTotal: ${Number(p.totalPoints).toFixed(1)} | Margin: ${p.projectedWinner === 'home' ? pick.game.homeTeam : pick.game.awayTeam} by ${Math.abs(p.projectedMargin).toFixed(1)}`;
         line += `\nConfidence: ${pick.analysis.confidence}`;
       } else {
         line += `\n→ ${pick.label}`;
@@ -117,7 +117,7 @@ export default function BetSlip() {
                         styles.projectedScore,
                         item.analysis?.pickType !== 'draw' && projection.projectedWinner === 'away' && styles.winningScore
                       ]}>
-                        {projection.awayPoints}
+                        {Number(projection.awayPoints).toFixed(1)}
                       </Text>
                     </View>
                     <Text style={[styles.vsText, item.analysis?.pickType === 'draw' && styles.drawText]}>
@@ -132,7 +132,7 @@ export default function BetSlip() {
                         styles.projectedScore,
                         item.analysis?.pickType !== 'draw' && projection.projectedWinner === 'home' && styles.winningScore
                       ]}>
-                        {projection.homePoints}
+                        {Number(projection.homePoints).toFixed(1)}
                       </Text>
                     </View>
                   </View>
@@ -141,7 +141,7 @@ export default function BetSlip() {
                   <View style={styles.projectionStats}>
                     <View style={styles.statItem}>
                       <Text style={styles.statLabel}>Total</Text>
-                      <Text style={styles.statValue}>{projection.totalPoints}</Text>
+                      <Text style={styles.statValue}>{Number(projection.totalPoints).toFixed(1)}</Text>
                       {odds?.overUnder && (
                         <Text style={styles.lineComparison}>
                           Line: {odds.overUnder}
@@ -154,7 +154,7 @@ export default function BetSlip() {
                       <Text style={styles.statValue}>
                         {item.analysis?.pickType === 'draw'
                           ? 'Draw'
-                          : `${projection.projectedWinner === 'home' ? item.game.homeTeam : item.game.awayTeam} by ${Math.abs(projection.projectedMargin)}`
+                          : `${projection.projectedWinner === 'home' ? item.game.homeTeam : item.game.awayTeam} by ${Math.abs(projection.projectedMargin).toFixed(1)}`
                         }
                       </Text>
                       {odds?.spread && item.analysis?.pickType !== 'draw' && (

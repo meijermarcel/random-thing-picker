@@ -1,5 +1,15 @@
 // API service for RTP backend
-const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://rtp-api.onrender.com';
+// For local development:
+// - iOS Simulator: use 'http://localhost:8000'
+// - Android Emulator: use 'http://10.0.2.2:8000'
+// - Physical device: use your machine's IP (e.g., 'http://192.168.1.x:8000')
+const LOCAL_API = 'http://localhost:8000';
+const PROD_API = 'https://rtp-api.onrender.com';
+
+// Toggle this for local development
+const USE_LOCAL_API = true;
+
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || (USE_LOCAL_API ? LOCAL_API : PROD_API);
 
 export interface APIGame {
   id: string;
@@ -46,6 +56,15 @@ export interface APIPick {
     reasoning: string[];
     home_score: number;
     away_score: number;
+    differential?: number;
+    projection?: {
+      home_points: number;
+      away_points: number;
+      total_points: number;
+      projected_winner: string;
+      projected_margin: number;
+      confidence: string;
+    };
   };
   algorithm_version: string;
   was_correct: boolean | null;
@@ -76,29 +95,62 @@ export interface APISport {
 }
 
 function formatDate(date: Date): string {
-  return date.toISOString().split('T')[0];
+  // Use local timezone instead of UTC to avoid date shifting
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getTimezone(): string {
+  // Get the device's IANA timezone name (e.g., 'America/New_York')
+  return Intl.DateTimeFormat().resolvedOptions().timeZone;
 }
 
 export async function fetchGames(date: Date, sport?: string): Promise<APIGameWithPick[]> {
-  const params = new URLSearchParams({ date: formatDate(date) });
+  const params = new URLSearchParams({
+    date: formatDate(date),
+    tz: getTimezone(),
+  });
   if (sport) params.append('sport', sport);
 
-  const response = await fetch(`${API_BASE}/picks?${params}`);
+  const url = `${API_BASE}/picks?${params}`;
+  console.log(`[API] fetchGames: ${url}`);
+  const start = Date.now();
+
+  const response = await fetch(url);
+  console.log(`[API] fetchGames response: ${response.status} in ${Date.now() - start}ms`);
+
   if (!response.ok) {
     throw new Error(`Failed to fetch games: ${response.status}`);
   }
-  return response.json();
+
+  const data = await response.json();
+  console.log(`[API] fetchGames parsed: ${data.length} games in ${Date.now() - start}ms total`);
+  return data;
 }
 
 export async function fetchParlays(date: Date, type?: string): Promise<APIParlay[]> {
-  const params = new URLSearchParams({ date: formatDate(date) });
+  const params = new URLSearchParams({
+    date: formatDate(date),
+    tz: getTimezone(),
+  });
   if (type) params.append('type', type);
 
-  const response = await fetch(`${API_BASE}/parlays?${params}`);
+  const url = `${API_BASE}/parlays?${params}`;
+  console.log(`[API] fetchParlays: ${url}`);
+  const start = Date.now();
+
+  const response = await fetch(url);
+  console.log(`[API] fetchParlays response: ${response.status} in ${Date.now() - start}ms`);
+
   if (!response.ok) {
     throw new Error(`Failed to fetch parlays: ${response.status}`);
   }
-  return response.json();
+
+  const data = await response.json();
+  console.log(`[API] fetchParlays parsed: ${data.length} parlays in ${Date.now() - start}ms total`);
+  return data;
 }
 
 export async function createCustomParlay(
@@ -106,7 +158,10 @@ export async function createCustomParlay(
   legCount: number,
   sports?: string[],
 ): Promise<APIParlay | { error: string }> {
-  const params = new URLSearchParams({ date: formatDate(date) });
+  const params = new URLSearchParams({
+    date: formatDate(date),
+    tz: getTimezone(),
+  });
 
   const response = await fetch(`${API_BASE}/parlays/custom?${params}`, {
     method: 'POST',
