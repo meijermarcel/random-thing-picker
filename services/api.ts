@@ -193,3 +193,14 @@ export async function checkHealth(): Promise<{ status: string; version: string; 
   }
   return response.json();
 }
+
+// API service object for class-style access
+export const apiService = {
+  async getPerformance(startDate: string, endDate: string): Promise<any> {
+    const response = await fetch(
+      `${API_BASE}/performance?start_date=${startDate}&end_date=${endDate}`
+    );
+    if (!response.ok) throw new Error('Failed to fetch performance');
+    return response.json();
+  },
+};
