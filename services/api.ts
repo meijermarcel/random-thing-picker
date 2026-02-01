@@ -208,4 +208,12 @@ export const apiService = {
     if (!response.ok) throw new Error('Failed to fetch performance');
     return response.json();
   },
+
+  async triggerUpdateResults(): Promise<{ status: string; job: string }> {
+    const response = await fetch(`${API_BASE}/admin/update-results`, {
+      method: 'POST',
+    });
+    if (!response.ok) throw new Error('Failed to trigger update results');
+    return response.json();
+  },
 };

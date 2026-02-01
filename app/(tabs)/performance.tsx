@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { apiService } from '../../services/api';
@@ -89,6 +90,7 @@ export default function PerformanceScreen() {
   const [data, setData] = useState<PerformanceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [updating, setUpdating] = useState(false);
 
   const fetchPerformance = async () => {
     try {
@@ -137,6 +139,20 @@ export default function PerformanceScreen() {
   const onRefresh = () => {
     setRefreshing(true);
     fetchPerformance();
+  };
+
+  const onUpdateResults = async () => {
+    setUpdating(true);
+    try {
+      await apiService.triggerUpdateResults();
+      Alert.alert('Success', 'Game results updated. Pull to refresh.');
+      fetchPerformance();
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update results. Try again later.');
+      console.error('Error updating results:', error);
+    } finally {
+      setUpdating(false);
+    }
   };
 
   const navigateDay = (direction: number) => {
@@ -243,6 +259,22 @@ export default function PerformanceScreen() {
           <Text style={styles.statLabel}>Units</Text>
         </View>
       </View>
+
+      {/* Update Results Button */}
+      <TouchableOpacity
+        style={styles.updateButton}
+        onPress={onUpdateResults}
+        disabled={updating}
+      >
+        {updating ? (
+          <ActivityIndicator size="small" color="#FFF" />
+        ) : (
+          <>
+            <Ionicons name="refresh" size={18} color="#FFF" style={{ marginRight: 8 }} />
+            <Text style={styles.updateButtonText}>Update Results</Text>
+          </>
+        )}
+      </TouchableOpacity>
 
       {/* Results List */}
       <Text style={styles.sectionTitle}>
@@ -390,6 +422,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B6B6B',
     marginTop: 4,
+  },
+  updateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#007AFF',
+    marginHorizontal: 16,
+    marginTop: 16,
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  updateButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   sectionTitle: {
     fontSize: 18,
