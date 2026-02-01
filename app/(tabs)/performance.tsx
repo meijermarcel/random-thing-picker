@@ -192,13 +192,13 @@ export default function PerformanceScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#F2F2F7',
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#000',
+    backgroundColor: '#F2F2F7',
   },
   periodSelector: {
     flexDirection: 'row',
@@ -210,13 +210,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: '#E5E5EA',
   },
   periodButtonActive: {
     backgroundColor: '#007AFF',
   },
   periodText: {
-    color: '#8E8E93',
+    color: '#6B6B6B',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -228,9 +228,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     paddingVertical: 20,
     paddingHorizontal: 16,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: '#FFF',
     marginHorizontal: 16,
     borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   statBox: {
     alignItems: 'center',
@@ -238,32 +243,37 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#FFF',
+    color: '#000',
   },
   statLabel: {
     fontSize: 12,
-    color: '#8E8E93',
+    color: '#6B6B6B',
     marginTop: 4,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#FFF',
+    color: '#000',
     marginTop: 24,
     marginBottom: 12,
     marginHorizontal: 16,
   },
   emptyText: {
-    color: '#8E8E93',
+    color: '#6B6B6B',
     textAlign: 'center',
     marginTop: 20,
   },
   pickCard: {
-    backgroundColor: '#1C1C1E',
+    backgroundColor: '#FFF',
     marginHorizontal: 16,
     marginBottom: 12,
     borderRadius: 12,
     padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   pickHeader: {
     flexDirection: 'row',
@@ -290,22 +300,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   pickLeague: {
-    color: '#8E8E93',
+    color: '#6B6B6B',
     fontSize: 12,
     marginRight: 8,
   },
   pickDate: {
-    color: '#8E8E93',
+    color: '#6B6B6B',
     fontSize: 12,
   },
   pickTeams: {
-    color: '#FFF',
+    color: '#000',
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 4,
   },
   pickSelection: {
-    color: '#8E8E93',
+    color: '#6B6B6B',
     fontSize: 14,
   },
   pickTeamName: {
@@ -313,10 +323,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   pickOdds: {
-    color: '#8E8E93',
+    color: '#6B6B6B',
   },
   pickScore: {
-    color: '#8E8E93',
+    color: '#6B6B6B',
     fontSize: 14,
     marginTop: 4,
   },
