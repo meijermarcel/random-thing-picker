@@ -1,17 +1,40 @@
 import { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, FlatList, ActivityIndicator, RefreshControl, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
-import { Game, Pick, SportFilter as SportFilterType, PickMode, PickType } from '../../types/sports';
-import { fetchGames } from '../../services/espn';
-import { analyzeGames, getAnalyzedPickLabel } from '../../services/analysis';
+import { Game, Pick, SportFilter as SportFilterType, PickMode, PickType, PickAnalysis } from '../../types/sports';
+import { fetchGames as fetchGamesFromAPI, APIGameWithPick } from '../../services/api';
+import { convertAPIGameToGame, convertAPIPickToAnalysis } from '../../services/apiConverters';
 import { SportFilter } from '../../components/SportFilter';
 import { DateSelector } from '../../components/DateSelector';
 import { GameRow } from '../../components/GameRow';
 import { PickButton } from '../../components/PickButton';
 import { PickModeSelector } from '../../components/PickModeSelector';
 
+// Helper to get pick label from analysis
+function getAnalyzedPickLabel(game: Game, analysis: PickAnalysis): string {
+  switch (analysis.pickType) {
+    case 'home':
+      return `${game.homeTeam} ML`;
+    case 'away':
+      return `${game.awayTeam} ML`;
+    case 'draw':
+      return 'Draw';
+    case 'home_cover':
+      return `${game.homeTeam} to cover`;
+    case 'away_cover':
+      return `${game.awayTeam} to cover`;
+    case 'over':
+      return 'Over';
+    case 'under':
+      return 'Under';
+    default:
+      return `${game.homeTeam} ML`;
+  }
+}
+
 export default function Sports() {
   const [games, setGames] = useState<Game[]>([]);
+  const [apiGames, setApiGames] = useState<Map<string, APIGameWithPick>>(new Map());
   const [selectedGames, setSelectedGames] = useState<Map<string, Game>>(new Map());
   const [filter, setFilter] = useState<SportFilterType>('all');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -21,8 +44,17 @@ export default function Sports() {
   const [analyzing, setAnalyzing] = useState(false);
 
   const loadGames = useCallback(async () => {
-    const data = await fetchGames(filter, selectedDate);
-    setGames(data);
+    const sport = filter === 'all' ? undefined : filter;
+    const data = await fetchGamesFromAPI(selectedDate, sport);
+
+    // Store API responses for later use in analysis
+    const apiMap = new Map<string, APIGameWithPick>();
+    data.forEach(item => apiMap.set(item.game.id, item));
+    setApiGames(apiMap);
+
+    // Convert to frontend Game format
+    const frontendGames = data.map(convertAPIGameToGame);
+    setGames(frontendGames);
   }, [filter, selectedDate]);
 
   useEffect(() => {
@@ -92,14 +124,13 @@ export default function Sports() {
   const handleAnalyzedPick = async () => {
     const gamesToPick = Array.from(selectedGames.values());
     setAnalyzing(true);
-    
+
     try {
-      const analyses = await analyzeGames(gamesToPick);
-      
+      // Use pre-analyzed picks from API
       const newPicks: Pick[] = gamesToPick.map((game) => {
-        const analysis = analyses.get(game.id);
-        if (!analysis) {
-          // Fallback to random if analysis fails
+        const apiGame = apiGames.get(game.id);
+        if (!apiGame?.pick) {
+          // Fallback to random if no analysis available
           const pickType: PickType = Math.random() < 0.5 ? 'home' : 'away';
           return {
             game,
@@ -107,7 +138,8 @@ export default function Sports() {
             label: pickType === 'home' ? `${game.homeTeam} ML` : `${game.awayTeam} ML`,
           };
         }
-        
+
+        const analysis = convertAPIPickToAnalysis(apiGame.pick);
         return {
           game,
           pickType: analysis.pickType,
@@ -115,7 +147,7 @@ export default function Sports() {
           analysis,
         };
       });
-      
+
       router.push({
         pathname: '/betslip',
         params: { picks: JSON.stringify(newPicks), returnTo: 'sports' },
@@ -143,11 +175,10 @@ export default function Sports() {
     setAnalyzing(true);
 
     try {
-      const analyses = await analyzeGames(games);
-
+      // Use pre-analyzed picks from API
       const newPicks: Pick[] = games.map((game) => {
-        const analysis = analyses.get(game.id);
-        if (!analysis) {
+        const apiGame = apiGames.get(game.id);
+        if (!apiGame?.pick) {
           const pickType: PickType = Math.random() < 0.5 ? 'home' : 'away';
           return {
             game,
@@ -156,6 +187,7 @@ export default function Sports() {
           };
         }
 
+        const analysis = convertAPIPickToAnalysis(apiGame.pick);
         return {
           game,
           pickType: analysis.pickType,

@@ -1,10 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, RefreshControl, TouchableOpacity, TextInput } from 'react-native';
 import { router } from 'expo-router';
-import { Game, ParlayRecommendation, PickAnalysis } from '../../types/sports';
-import { fetchGames } from '../../services/espn';
-import { analyzeGames } from '../../services/analysis';
-import { generateParlays, buildCustomParlay } from '../../services/parlayBuilder';
+import { Game, ParlayRecommendation } from '../../types/sports';
+import { fetchParlays as fetchParlaysFromAPI, createCustomParlay as createCustomParlayFromAPI, APIParlay } from '../../services/api';
+import { convertAPIParlayToRecommendation } from '../../services/apiConverters';
 import { DateSelector } from '../../components/DateSelector';
 import { ParlayCard } from '../../components/ParlayCard';
 
@@ -16,8 +15,7 @@ interface ParlayCache {
   dateKey: string;
   parlays: ParlayRecommendation[];
   gameCount: number;
-  games: Game[];
-  analyses: Map<string, PickAnalysis>;
+  availableLeagues: string[];
 }
 let parlayCache: ParlayCache | null = null;
 
@@ -27,19 +25,17 @@ export default function Parlays() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [gameCount, setGameCount] = useState(0);
-  const [analyzingCount, setAnalyzingCount] = useState(0);
   const [customLegs, setCustomLegs] = useState('8');
   const [selectedLeagues, setSelectedLeagues] = useState<Set<string>>(new Set());
+  const [generatingCustom, setGeneratingCustom] = useState(false);
 
-  // Get available leagues from cached games
-  const availableLeagues = parlayCache?.games
-    ? Array.from(new Set(parlayCache.games.map(g => g.leagueAbbr)))
-    : [];
+  // Get available leagues from cached parlays
+  const availableLeagues = parlayCache?.availableLeagues ?? [];
 
-  // Get game count for selected leagues
+  // Get game count for selected leagues (approximation based on total)
   const filteredGameCount = selectedLeagues.size === 0
     ? gameCount
-    : parlayCache?.games.filter(g => selectedLeagues.has(g.leagueAbbr)).length ?? 0;
+    : Math.floor(gameCount * selectedLeagues.size / Math.max(availableLeagues.length, 1));
 
   const toggleLeague = (league: string) => {
     setSelectedLeagues(prev => {
@@ -67,36 +63,45 @@ export default function Parlays() {
       return;
     }
 
-    // Fetch all games
-    const games = await fetchGames('all', selectedDate);
-    setGameCount(games.length);
+    // Fetch parlays from API (API handles game fetching and analysis)
+    const apiParlays = await fetchParlaysFromAPI(selectedDate);
 
-    if (games.length === 0) {
-      setParlays([]);
-      parlayCache = { dateKey, parlays: [], gameCount: 0, games: [], analyses: new Map() };
-      return;
-    }
-
-    setAnalyzingCount(games.length);
-
-    // Analyze all games
-    const analyses = await analyzeGames(games);
-
-    // Generate parlays
-    const recommendations = generateParlays(games, analyses);
+    // Convert API parlays to frontend format
+    const recommendations = apiParlays.map(convertAPIParlayToRecommendation);
     setParlays(recommendations);
 
+    // Calculate game count and available leagues from parlay picks
+    const allPicks = recommendations.flatMap(p => p.picks);
+    const uniqueGames = new Map(allPicks.map(p => [p.game.id, p.game]));
+    const gamesCount = uniqueGames.size;
+    const leagues = Array.from(new Set(allPicks.map(p => p.game.leagueAbbr)));
+
+    setGameCount(gamesCount);
+
     // Update module-level cache
-    parlayCache = { dateKey, parlays: recommendations, gameCount: games.length, games, analyses };
+    parlayCache = { dateKey, parlays: recommendations, gameCount: gamesCount, availableLeagues: leagues };
   }, [selectedDate]);
 
-  const handleGenerateCustom = () => {
+  const handleGenerateCustom = async () => {
     const numLegs = parseInt(customLegs, 10);
-    if (isNaN(numLegs) || numLegs < 2 || !parlayCache) return;
+    if (isNaN(numLegs) || numLegs < 2) return;
 
-    const customParlay = buildCustomParlay(parlayCache.games, parlayCache.analyses, numLegs, selectedLeagues);
-    if (customParlay) {
+    setGeneratingCustom(true);
+    try {
+      const sports = selectedLeagues.size > 0 ? Array.from(selectedLeagues) : undefined;
+      const result = await createCustomParlayFromAPI(selectedDate, numLegs, sports);
+
+      if ('error' in result) {
+        console.error('Custom parlay error:', result.error);
+        return;
+      }
+
+      const customParlay = convertAPIParlayToRecommendation(result);
       handleViewParlay(customParlay);
+    } catch (error) {
+      console.error('Failed to generate custom parlay:', error);
+    } finally {
+      setGeneratingCustom(false);
     }
   };
 
@@ -105,7 +110,6 @@ export default function Parlays() {
     // Only show loading if we don't have cached data for this date
     if (!parlayCache || parlayCache.dateKey !== dateKey) {
       setLoading(true);
-      setAnalyzingCount(0);
     }
     loadParlays().finally(() => setLoading(false));
   }, [loadParlays]);
@@ -130,9 +134,7 @@ export default function Parlays() {
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color="#007AFF" />
-          {analyzingCount > 0 && (
-            <Text style={styles.loadingText}>Analyzing {analyzingCount} games...</Text>
-          )}
+          <Text style={styles.loadingText}>Loading parlays...</Text>
         </View>
       ) : gameCount === 0 ? (
         <View style={styles.center}>
@@ -183,7 +185,10 @@ export default function Parlays() {
                 </Text>
               </TouchableOpacity>
               {availableLeagues.map(league => {
-                const count = parlayCache?.games.filter(g => g.leagueAbbr === league).length ?? 0;
+                // Estimate count per league based on parlay picks
+                const pickCount = parlayCache?.parlays
+                  .flatMap(p => p.picks)
+                  .filter(p => p.game.leagueAbbr === league).length ?? 0;
                 const isSelected = selectedLeagues.has(league);
                 return (
                   <TouchableOpacity
@@ -192,7 +197,7 @@ export default function Parlays() {
                     onPress={() => toggleLeague(league)}
                   >
                     <Text style={[styles.sportChipText, isSelected && styles.sportChipTextActive]}>
-                      {league} ({count})
+                      {league} ({pickCount})
                     </Text>
                   </TouchableOpacity>
                 );
@@ -212,12 +217,12 @@ export default function Parlays() {
               <TouchableOpacity
                 style={[
                   styles.customButton,
-                  parseInt(customLegs, 10) > filteredGameCount && styles.customButtonDisabled
+                  (parseInt(customLegs, 10) > filteredGameCount || generatingCustom) && styles.customButtonDisabled
                 ]}
                 onPress={handleGenerateCustom}
-                disabled={parseInt(customLegs, 10) > filteredGameCount}
+                disabled={parseInt(customLegs, 10) > filteredGameCount || generatingCustom}
               >
-                <Text style={styles.customButtonText}>Generate</Text>
+                <Text style={styles.customButtonText}>{generatingCustom ? 'Generating...' : 'Generate'}</Text>
               </TouchableOpacity>
             </View>
             {parseInt(customLegs, 10) > filteredGameCount && (
