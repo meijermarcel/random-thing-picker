@@ -55,6 +55,7 @@ interface PickDetail {
   pick: string;
   pick_abbr: string;
   pick_is_home: boolean;
+  is_draw_pick: boolean;
   confidence: string;
   odds: number | null;
   spread: number | null;
@@ -90,6 +91,18 @@ function formatApiDate(date: Date): string {
   return date.toISOString().split('T')[0];
 }
 
+function formatPickDate(dateString: string): string {
+  const date = new Date(dateString + 'T00:00:00');
+  const day = date.getDate();
+  const suffix = day === 1 || day === 21 || day === 31 ? 'st'
+    : day === 2 || day === 22 ? 'nd'
+    : day === 3 || day === 23 ? 'rd'
+    : 'th';
+  const month = date.toLocaleDateString('en-US', { month: 'short' });
+  const year = date.getFullYear();
+  return `${month} ${day}${suffix}, ${year}`;
+}
+
 export default function PerformanceScreen() {
   const [period, setPeriod] = useState<Period>('7d');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -98,6 +111,7 @@ export default function PerformanceScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [fixingScores, setFixingScores] = useState(false);
 
   const fetchPerformance = async () => {
     try {
@@ -159,6 +173,24 @@ export default function PerformanceScreen() {
       console.error('Error updating results:', error);
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const onFixScores = async () => {
+    setFixingScores(true);
+    try {
+      const refreshResult = await apiService.refreshFinalScores();
+      const fixResult = await apiService.fixOrphanedPicks();
+      Alert.alert(
+        'Success',
+        `Updated ${refreshResult.updated_games} game scores, fixed ${fixResult.fixed_picks} picks.`
+      );
+      fetchPerformance();
+    } catch (error) {
+      Alert.alert('Error', 'Failed to fix scores. Try again later.');
+      console.error('Error fixing scores:', error);
+    } finally {
+      setFixingScores(false);
     }
   };
 
@@ -267,21 +299,38 @@ export default function PerformanceScreen() {
         </View>
       </View>
 
-      {/* Update Results Button */}
-      <TouchableOpacity
-        style={styles.updateButton}
-        onPress={onUpdateResults}
-        disabled={updating}
-      >
-        {updating ? (
-          <ActivityIndicator size="small" color="#FFF" />
-        ) : (
-          <>
-            <Ionicons name="refresh" size={18} color="#FFF" style={{ marginRight: 8 }} />
-            <Text style={styles.updateButtonText}>Update Results</Text>
-          </>
-        )}
-      </TouchableOpacity>
+      {/* Admin Buttons */}
+      <View style={styles.adminButtonRow}>
+        <TouchableOpacity
+          style={[styles.adminButton, styles.updateButton]}
+          onPress={onUpdateResults}
+          disabled={updating}
+        >
+          {updating ? (
+            <ActivityIndicator size="small" color="#FFF" />
+          ) : (
+            <>
+              <Ionicons name="refresh" size={16} color="#FFF" style={{ marginRight: 6 }} />
+              <Text style={styles.adminButtonText}>Update Results</Text>
+            </>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.adminButton, styles.fixButton]}
+          onPress={onFixScores}
+          disabled={fixingScores}
+        >
+          {fixingScores ? (
+            <ActivityIndicator size="small" color="#FFF" />
+          ) : (
+            <>
+              <Ionicons name="build" size={16} color="#FFF" style={{ marginRight: 6 }} />
+              <Text style={styles.adminButtonText}>Fix Scores</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
 
       {/* Results List */}
       <Text style={styles.sectionTitle}>
@@ -298,7 +347,7 @@ export default function PerformanceScreen() {
                 <Text style={styles.resultText}>{pick.result === 'win' ? 'W' : 'L'}</Text>
               </View>
               <Text style={styles.pickLeague}>{pick.league}</Text>
-              <Text style={styles.pickDate}>{pick.date}</Text>
+              <Text style={styles.pickDate}>{formatPickDate(pick.date)}</Text>
             </View>
 
             {/* Matchup with logos and scores */}
@@ -312,7 +361,7 @@ export default function PerformanceScreen() {
                     <Text style={styles.logoPlaceholderText}>{pick.away_team_abbr?.charAt(0)}</Text>
                   </View>
                 )}
-                <Text style={[styles.teamAbbr, !pick.pick_is_home && styles.pickedTeam]}>
+                <Text style={[styles.teamAbbr, !pick.pick_is_home && !pick.is_draw_pick && styles.pickedTeam]}>
                   {pick.away_team_abbr}
                 </Text>
                 {pick.away_score !== null && (
@@ -339,7 +388,7 @@ export default function PerformanceScreen() {
                     <Text style={styles.logoPlaceholderText}>{pick.home_team_abbr?.charAt(0)}</Text>
                   </View>
                 )}
-                <Text style={[styles.teamAbbr, pick.pick_is_home && styles.pickedTeam]}>
+                <Text style={[styles.teamAbbr, pick.pick_is_home && !pick.is_draw_pick && styles.pickedTeam]}>
                   {pick.home_team_abbr}
                 </Text>
                 {pick.home_score !== null && (
@@ -354,9 +403,9 @@ export default function PerformanceScreen() {
             {/* Pick info */}
             <View style={styles.pickInfoRow}>
               <Text style={styles.pickLabel}>
-                Pick: <Text style={styles.pickTeamName}>{pick.pick_abbr}</Text>
+                Pick: <Text style={pick.is_draw_pick ? styles.pickDrawName : styles.pickTeamName}>{pick.pick_abbr}</Text>
               </Text>
-              {pick.odds && (
+              {pick.odds && !pick.is_draw_pick && (
                 <Text style={styles.pickOdds}>
                   {pick.odds > 0 ? '+' : ''}{pick.odds}
                 </Text>
@@ -474,19 +523,29 @@ const styles = StyleSheet.create({
     color: '#6B6B6B',
     marginTop: 4,
   },
-  updateButton: {
+  adminButtonRow: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginTop: 16,
+    gap: 12,
+  },
+  adminButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#007AFF',
-    marginHorizontal: 16,
-    marginTop: 16,
     paddingVertical: 12,
     borderRadius: 10,
   },
-  updateButtonText: {
+  updateButton: {
+    backgroundColor: '#007AFF',
+  },
+  fixButton: {
+    backgroundColor: '#FF9500',
+  },
+  adminButtonText: {
     color: '#FFF',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
   },
   sectionTitle: {
@@ -630,6 +689,10 @@ const styles = StyleSheet.create({
   },
   pickTeamName: {
     color: '#007AFF',
+    fontWeight: '600',
+  },
+  pickDrawName: {
+    color: '#FF9500',
     fontWeight: '600',
   },
   pickOdds: {

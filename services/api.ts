@@ -7,7 +7,7 @@ const LOCAL_API = 'http://localhost:8000';
 const PROD_API = 'https://rtp-api.onrender.com';
 
 // Toggle this for local development
-const USE_LOCAL_API = true;
+const USE_LOCAL_API = false;
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || (USE_LOCAL_API ? LOCAL_API : PROD_API);
 
@@ -214,6 +214,22 @@ export const apiService = {
       method: 'POST',
     });
     if (!response.ok) throw new Error('Failed to trigger update results');
+    return response.json();
+  },
+
+  async refreshFinalScores(): Promise<{ status: string; updated_games: number }> {
+    const response = await fetch(`${API_BASE}/admin/refresh-final-scores`, {
+      method: 'POST',
+    });
+    if (!response.ok) throw new Error('Failed to refresh final scores');
+    return response.json();
+  },
+
+  async fixOrphanedPicks(): Promise<{ status: string; fixed_picks: number }> {
+    const response = await fetch(`${API_BASE}/admin/fix-orphaned-picks`, {
+      method: 'POST',
+    });
+    if (!response.ok) throw new Error('Failed to fix orphaned picks');
     return response.json();
   },
 };
