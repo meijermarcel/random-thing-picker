@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { apiService } from '../../services/api';
 
 type Period = 'day' | '7d' | '30d' | 'all';
+type PickType = 'ml' | 'spread';
 type League = 'all' | 'basketball' | 'football' | 'hockey' | 'baseball' | 'soccer';
 
 const LEAGUES: { key: League; label: string }[] = [
@@ -107,6 +108,7 @@ export default function PerformanceScreen() {
   const [period, setPeriod] = useState<Period>('7d');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [league, setLeague] = useState<League>('all');
+  const [pickType, setPickType] = useState<PickType>('ml');
   const [data, setData] = useState<PerformanceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -141,7 +143,8 @@ export default function PerformanceScreen() {
       const response = await apiService.getPerformance(
         formatApiDate(startDate),
         formatApiDate(endDate),
-        league === 'all' ? undefined : league
+        league === 'all' ? undefined : league,
+        pickType
       );
       setData(response);
     } catch (error) {
@@ -155,7 +158,7 @@ export default function PerformanceScreen() {
   useEffect(() => {
     setLoading(true);
     fetchPerformance();
-  }, [period, selectedDate, league]);
+  }, [period, selectedDate, league, pickType]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -256,6 +259,21 @@ export default function PerformanceScreen() {
           </TouchableOpacity>
         </View>
       )}
+
+      {/* Pick Type Toggle */}
+      <View style={styles.pickTypeSelector}>
+        {(['ml', 'spread'] as PickType[]).map((pt) => (
+          <TouchableOpacity
+            key={pt}
+            style={[styles.pickTypeButton, pickType === pt && styles.pickTypeButtonActive]}
+            onPress={() => setPickType(pt)}
+          >
+            <Text style={[styles.pickTypeText, pickType === pt && styles.pickTypeTextActive]}>
+              {pt === 'ml' ? 'Moneyline' : 'Spread'}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
       {/* League Filter */}
       <ScrollView
@@ -698,5 +716,28 @@ const styles = StyleSheet.create({
   pickOdds: {
     fontSize: 14,
     color: '#6B6B6B',
+  },
+  pickTypeSelector: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    gap: 8,
+  },
+  pickTypeButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#E5E5EA',
+  },
+  pickTypeButtonActive: {
+    backgroundColor: '#34C759',
+  },
+  pickTypeText: {
+    color: '#6B6B6B',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  pickTypeTextActive: {
+    color: '#FFF',
   },
 });
