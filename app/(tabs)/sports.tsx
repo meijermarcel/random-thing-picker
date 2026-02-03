@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, FlatList, ActivityIndicator, RefreshControl, TouchableOpacity, Alert } from 'react-native';
 import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { Game, Pick, SportFilter as SportFilterType, PickMode, PickType, PickAnalysis } from '../../types/sports';
 import { fetchGames as fetchGamesFromAPI, APIGameWithPick, apiService } from '../../services/api';
 import { convertAPIGameToGame, convertAPIPickToAnalysis } from '../../services/apiConverters';
@@ -43,6 +44,7 @@ export default function Sports() {
   const [refreshing, setRefreshing] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [refreshingPick, setRefreshingPick] = useState<string | null>(null);
+  const [refreshingAll, setRefreshingAll] = useState(false);
 
   const loadGames = useCallback(async () => {
     const sport = filter === 'all' ? undefined : filter;
@@ -87,6 +89,19 @@ export default function Sports() {
       Alert.alert('Error', error instanceof Error ? error.message : 'Failed to refresh pick');
     } finally {
       setRefreshingPick(null);
+    }
+  };
+
+  const handleRefreshAll = async () => {
+    setRefreshingAll(true);
+    try {
+      const result = await apiService.regeneratePicksForDate(selectedDate);
+      Alert.alert('Success', `Refreshed ${result.regenerated} picks`);
+      await loadGames(); // Reload to show updated picks
+    } catch (error) {
+      Alert.alert('Error', 'Failed to refresh picks');
+    } finally {
+      setRefreshingAll(false);
     }
   };
 
@@ -246,7 +261,21 @@ export default function Sports() {
   return (
     <SafeAreaView style={styles.container}>
       <SportFilter selected={filter} onSelect={setFilter} />
-      <DateSelector selectedDate={selectedDate} onDateChange={setSelectedDate} />
+      <View style={styles.headerRow}>
+        <DateSelector selectedDate={selectedDate} onDateChange={setSelectedDate} />
+        <TouchableOpacity
+          style={styles.refreshAllButton}
+          onPress={handleRefreshAll}
+          disabled={refreshingAll || loading}
+        >
+          {refreshingAll ? (
+            <ActivityIndicator size="small" color="#FFF" />
+          ) : (
+            <Ionicons name="refresh" size={18} color="#FFF" />
+          )}
+          <Text style={styles.refreshAllText}>Refresh All</Text>
+        </TouchableOpacity>
+      </View>
       <PickModeSelector
         selected={pickMode}
         onSelect={setPickMode}
@@ -317,6 +346,27 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f8f8',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  refreshAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6,
+  },
+  refreshAllText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
   center: {
     flex: 1,
