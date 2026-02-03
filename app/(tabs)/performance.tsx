@@ -362,100 +362,90 @@ export default function PerformanceScreen() {
         (pickType === 'spread'
           ? picks.filter(p => p.spread !== null && p.spread_result !== null)
           : picks
-        ).map((pick) => (
-          <View key={pick.id} style={styles.pickCard}>
-            {/* Header with result badge and metadata */}
-            <View style={styles.pickHeader}>
-              <View style={[
-                styles.resultBadge,
-                (pickType === 'ml' ? pick.result : pick.spread_result) === 'win' ? styles.winBadge : styles.lossBadge
-              ]}>
-                <Text style={styles.resultText}>
-                  {(pickType === 'ml' ? pick.result : pick.spread_result) === 'win' ? 'W' : 'L'}
-                </Text>
+        ).map((pick) => {
+          const isWin = (pickType === 'ml' ? pick.result : pick.spread_result) === 'win';
+          const margin = pick.home_score !== null && pick.away_score !== null
+            ? Math.abs(pick.home_score - pick.away_score)
+            : null;
+          const homeWon = pick.home_score !== null && pick.away_score !== null && pick.home_score > pick.away_score;
+
+          return (
+            <View key={pick.id} style={styles.pickCard}>
+              {/* Header: League and Date */}
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardLeague}>{pick.league}</Text>
+                <Text style={styles.cardDate}>{formatPickDate(pick.date)}</Text>
               </View>
-              <Text style={styles.pickLeague}>{pick.league}</Text>
-              <Text style={styles.pickDate}>{formatPickDate(pick.date)}</Text>
+
+              {/* Matchup Row */}
+              <View style={styles.matchupRow}>
+                {/* Away Team */}
+                <View style={styles.teamRow}>
+                  {pick.away_team_logo ? (
+                    <Image source={{ uri: pick.away_team_logo }} style={styles.teamLogoSmall} />
+                  ) : (
+                    <View style={styles.logoPlaceholderSmall}>
+                      <Text style={styles.logoPlaceholderTextSmall}>{pick.away_team_abbr?.charAt(0)}</Text>
+                    </View>
+                  )}
+                  <Text style={styles.teamName}>{pick.away_team_abbr}</Text>
+                  <Text style={[styles.scoreText, !homeWon && pick.away_score !== null && styles.winningScore]}>
+                    {pick.away_score ?? '-'}
+                  </Text>
+                </View>
+
+                {/* Home Team */}
+                <View style={styles.teamRow}>
+                  {pick.home_team_logo ? (
+                    <Image source={{ uri: pick.home_team_logo }} style={styles.teamLogoSmall} />
+                  ) : (
+                    <View style={styles.logoPlaceholderSmall}>
+                      <Text style={styles.logoPlaceholderTextSmall}>{pick.home_team_abbr?.charAt(0)}</Text>
+                    </View>
+                  )}
+                  <Text style={styles.teamName}>{pick.home_team_abbr}</Text>
+                  <Text style={[styles.scoreText, homeWon && styles.winningScore]}>
+                    {pick.home_score ?? '-'}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Our Pick Section */}
+              <View style={styles.ourPickSection}>
+                <Text style={styles.ourPickLabel}>OUR PICK</Text>
+                <View style={styles.pickBetRow}>
+                  <Text style={styles.pickBetText}>
+                    {pick.is_draw_pick ? 'Draw' : pick.pick_abbr}
+                    {pickType === 'spread' && pick.spread !== null && (
+                      <Text style={styles.spreadText}> {pick.spread > 0 ? '+' : ''}{pick.spread}</Text>
+                    )}
+                    {pickType === 'ml' && pick.odds && !pick.is_draw_pick && (
+                      <Text style={styles.oddsText}> ({pick.odds > 0 ? '+' : ''}{pick.odds})</Text>
+                    )}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Result Section */}
+              <View style={[styles.resultSection, isWin ? styles.resultWin : styles.resultLoss]}>
+                <Text style={styles.resultIcon}>{isWin ? '✓' : '✗'}</Text>
+                <View style={styles.resultTextContainer}>
+                  <Text style={styles.resultMainText}>
+                    {pickType === 'spread'
+                      ? (isWin ? 'COVERED' : 'MISSED')
+                      : (isWin ? 'WIN' : 'LOSS')
+                    }
+                  </Text>
+                  {margin !== null && (
+                    <Text style={styles.resultSubText}>
+                      {homeWon ? pick.home_team_abbr : pick.away_team_abbr} won by {margin}
+                    </Text>
+                  )}
+                </View>
+              </View>
             </View>
-
-            {/* Matchup with logos and scores */}
-            <View style={styles.matchupContainer}>
-              {/* Away Team */}
-              <View style={styles.teamColumn}>
-                {pick.away_team_logo ? (
-                  <Image source={{ uri: pick.away_team_logo }} style={styles.teamLogo} />
-                ) : (
-                  <View style={styles.logoPlaceholder}>
-                    <Text style={styles.logoPlaceholderText}>{pick.away_team_abbr?.charAt(0)}</Text>
-                  </View>
-                )}
-                <Text style={[styles.teamAbbr, !pick.pick_is_home && !pick.is_draw_pick && styles.pickedTeam]}>
-                  {pick.away_team_abbr}
-                </Text>
-                {pick.away_score !== null && (
-                  <Text style={styles.teamScore}>{pick.away_score}</Text>
-                )}
-                {pick.away_score_predicted !== null && (
-                  <Text style={styles.predictedTeamScore}>{pick.away_score_predicted.toFixed(1)}</Text>
-                )}
-              </View>
-
-              {/* VS / @ */}
-              <View style={styles.vsColumn}>
-                <Text style={styles.vsText}>@</Text>
-                {pick.home_score !== null && <Text style={styles.finalLabel}>Final</Text>}
-                {pick.home_score_predicted !== null && <Text style={styles.predLabel}>Pred</Text>}
-              </View>
-
-              {/* Home Team */}
-              <View style={styles.teamColumn}>
-                {pick.home_team_logo ? (
-                  <Image source={{ uri: pick.home_team_logo }} style={styles.teamLogo} />
-                ) : (
-                  <View style={styles.logoPlaceholder}>
-                    <Text style={styles.logoPlaceholderText}>{pick.home_team_abbr?.charAt(0)}</Text>
-                  </View>
-                )}
-                <Text style={[styles.teamAbbr, pick.pick_is_home && !pick.is_draw_pick && styles.pickedTeam]}>
-                  {pick.home_team_abbr}
-                </Text>
-                {pick.home_score !== null && (
-                  <Text style={styles.teamScore}>{pick.home_score}</Text>
-                )}
-                {pick.home_score_predicted !== null && (
-                  <Text style={styles.predictedTeamScore}>{pick.home_score_predicted.toFixed(1)}</Text>
-                )}
-              </View>
-            </View>
-
-            {/* Pick info */}
-            <View style={styles.pickInfoRow}>
-              <Text style={styles.pickLabel}>
-                Pick: <Text style={pick.is_draw_pick ? styles.pickDrawName : styles.pickTeamName}>{pick.pick_abbr}</Text>
-              </Text>
-              {pick.odds && !pick.is_draw_pick && (
-                <Text style={styles.pickOdds}>
-                  {pick.odds > 0 ? '+' : ''}{pick.odds}
-                </Text>
-              )}
-            </View>
-
-            {/* Spread info */}
-            {pickType === 'spread' && pick.spread !== null && (
-              <View style={styles.spreadInfoRow}>
-                <Text style={styles.spreadLabel}>
-                  Spread: {pick.spread > 0 ? '+' : ''}{pick.spread}
-                </Text>
-                <Text style={[
-                  styles.spreadResult,
-                  pick.spread_result === 'win' ? styles.spreadWin : styles.spreadLoss
-                ]}>
-                  {pick.spread_result === 'win' ? 'Covered' : 'Missed'}
-                </Text>
-              </View>
-            )}
-          </View>
-        ))
+          );
+        })
       )}
     </ScrollView>
   );
@@ -608,139 +598,139 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF',
     marginHorizontal: 16,
     marginBottom: 12,
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  pickHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  resultBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 8,
-  },
-  winBadge: {
-    backgroundColor: '#34C759',
-  },
-  lossBadge: {
-    backgroundColor: '#FF3B30',
-  },
-  resultText: {
-    color: '#FFF',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  pickLeague: {
-    color: '#6B6B6B',
-    fontSize: 12,
-    marginRight: 8,
-  },
-  pickDate: {
-    color: '#6B6B6B',
-    fontSize: 12,
-  },
-  matchupContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-    paddingVertical: 12,
-  },
-  teamColumn: {
-    alignItems: 'center',
-    width: 80,
-  },
-  teamLogo: {
-    width: 48,
-    height: 48,
-    marginBottom: 6,
-  },
-  logoPlaceholder: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#E5E5EA',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  logoPlaceholderText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#6B6B6B',
-  },
-  teamAbbr: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 4,
-  },
-  pickedTeam: {
-    color: '#007AFF',
-  },
-  teamScore: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#000',
-  },
-  predictedTeamScore: {
-    fontSize: 14,
-    color: '#6B6B6B',
-    marginTop: 2,
-  },
-  vsColumn: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-  },
-  vsText: {
-    fontSize: 14,
-    color: '#6B6B6B',
-    marginBottom: 8,
-  },
-  finalLabel: {
-    fontSize: 10,
-    color: '#6B6B6B',
-    marginTop: 24,
-  },
-  predLabel: {
-    fontSize: 10,
-    color: '#6B6B6B',
-    marginTop: 4,
-  },
-  pickInfoRow: {
+  cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F2F2F7',
+  },
+  cardLeague: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B6B6B',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  cardDate: {
+    fontSize: 12,
+    color: '#8E8E93',
+  },
+  matchupRow: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  teamRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  teamLogoSmall: {
+    width: 32,
+    height: 32,
+    marginRight: 12,
+  },
+  logoPlaceholderSmall: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#E5E5EA',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  logoPlaceholderTextSmall: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#6B6B6B',
+  },
+  teamName: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#000',
+  },
+  scoreText: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#8E8E93',
+    minWidth: 36,
+    textAlign: 'right',
+  },
+  winningScore: {
+    color: '#000',
+    fontWeight: '700',
+  },
+  ourPickSection: {
+    backgroundColor: '#F8F8F8',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: '#F2F2F7',
-    paddingTop: 12,
-    marginTop: 4,
   },
-  pickLabel: {
-    fontSize: 14,
-    color: '#6B6B6B',
+  ourPickLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#8E8E93',
+    letterSpacing: 1,
+    marginBottom: 4,
   },
-  pickTeamName: {
+  pickBetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  pickBetText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000',
+  },
+  spreadText: {
     color: '#007AFF',
-    fontWeight: '600',
   },
-  pickDrawName: {
-    color: '#FF9500',
-    fontWeight: '600',
+  oddsText: {
+    color: '#8E8E93',
+    fontWeight: '400',
   },
-  pickOdds: {
-    fontSize: 14,
-    color: '#6B6B6B',
+  resultSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  resultWin: {
+    backgroundColor: '#34C759',
+  },
+  resultLoss: {
+    backgroundColor: '#FF3B30',
+  },
+  resultIcon: {
+    fontSize: 20,
+    color: '#FFF',
+    fontWeight: 'bold',
+    marginRight: 12,
+  },
+  resultTextContainer: {
+    flex: 1,
+  },
+  resultMainText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFF',
+  },
+  resultSubText: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 2,
   },
   pickTypeSelector: {
     flexDirection: 'row',
@@ -764,28 +754,5 @@ const styles = StyleSheet.create({
   },
   pickTypeTextActive: {
     color: '#FFF',
-  },
-  spreadInfoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 8,
-    marginTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#F2F2F7',
-  },
-  spreadLabel: {
-    fontSize: 14,
-    color: '#6B6B6B',
-  },
-  spreadResult: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  spreadWin: {
-    color: '#34C759',
-  },
-  spreadLoss: {
-    color: '#FF3B30',
   },
 });
