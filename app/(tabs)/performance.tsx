@@ -15,11 +15,12 @@ import { apiService } from '../../services/api';
 
 type Period = 'day' | '7d' | '30d' | 'all';
 type PickType = 'ml' | 'spread';
-type League = 'all' | 'basketball' | 'football' | 'hockey' | 'baseball' | 'soccer';
+type League = 'all' | 'nba' | 'ncaam' | 'football' | 'hockey' | 'baseball' | 'soccer';
 
 const LEAGUES: { key: League; label: string }[] = [
   { key: 'all', label: 'All' },
-  { key: 'basketball', label: 'NBA' },
+  { key: 'nba', label: 'NBA' },
+  { key: 'ncaam', label: 'NCAAM' },
   { key: 'football', label: 'NFL' },
   { key: 'hockey', label: 'NHL' },
   { key: 'baseball', label: 'MLB' },
