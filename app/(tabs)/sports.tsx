@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, FlatList, ActivityIndicator, RefreshControl, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, FlatList, ActivityIndicator, RefreshControl, TouchableOpacity, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { Game, Pick, SportFilter as SportFilterType, PickMode, PickType, PickAnalysis } from '../../types/sports';
-import { fetchGames as fetchGamesFromAPI, APIGameWithPick } from '../../services/api';
+import { fetchGames as fetchGamesFromAPI, APIGameWithPick, apiService } from '../../services/api';
 import { convertAPIGameToGame, convertAPIPickToAnalysis } from '../../services/apiConverters';
 import { SportFilter } from '../../components/SportFilter';
 import { DateSelector } from '../../components/DateSelector';
@@ -42,6 +42,7 @@ export default function Sports() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [refreshingPick, setRefreshingPick] = useState<string | null>(null);
 
   const loadGames = useCallback(async () => {
     const sport = filter === 'all' ? undefined : filter;
@@ -67,6 +68,26 @@ export default function Sports() {
     setRefreshing(true);
     await loadGames();
     setRefreshing(false);
+  };
+
+  const handleRefreshPick = async (gameId: string, pickId: string) => {
+    setRefreshingPick(pickId);
+    try {
+      const updatedPick = await apiService.regeneratePick(pickId);
+      // Update the apiGames map with the new pick
+      setApiGames(prev => {
+        const next = new Map(prev);
+        const existing = next.get(gameId);
+        if (existing) {
+          next.set(gameId, { ...existing, pick: updatedPick });
+        }
+        return next;
+      });
+    } catch (error) {
+      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to refresh pick');
+    } finally {
+      setRefreshingPick(null);
+    }
   };
 
   const toggleGame = (game: Game) => {
