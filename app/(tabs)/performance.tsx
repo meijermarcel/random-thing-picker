@@ -47,6 +47,7 @@ interface DailyBreakdown {
 interface PickDetail {
   id: string;
   date: string;
+  scheduled_at: string | null;
   league: string;
   home_team: string;
   away_team: string;
@@ -90,11 +91,23 @@ function formatDisplayDate(date: Date): string {
 }
 
 function formatApiDate(date: Date): string {
-  return date.toISOString().split('T')[0];
+  // Use local date components, not UTC (toISOString converts to UTC)
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
-function formatPickDate(dateString: string): string {
-  const date = new Date(dateString + 'T00:00:00');
+function formatPickDate(scheduledAt: string | null, fallbackDate: string): string {
+  // Use scheduled_at (ISO timestamp) if available, converting to local timezone
+  // Otherwise fall back to the date string
+  let date: Date;
+  if (scheduledAt) {
+    date = new Date(scheduledAt);
+  } else {
+    date = new Date(fallbackDate + 'T12:00:00'); // Use noon to avoid timezone edge cases
+  }
+
   const day = date.getDate();
   const suffix = day === 1 || day === 21 || day === 31 ? 'st'
     : day === 2 || day === 22 ? 'nd'
@@ -106,7 +119,7 @@ function formatPickDate(dateString: string): string {
 }
 
 export default function PerformanceScreen() {
-  const [period, setPeriod] = useState<Period>('7d');
+  const [period, setPeriod] = useState<Period>('day');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [league, setLeague] = useState<League>('all');
   const [pickType, setPickType] = useState<PickType>('ml');
@@ -375,7 +388,7 @@ export default function PerformanceScreen() {
               {/* Header: League and Date */}
               <View style={styles.cardHeader}>
                 <Text style={styles.cardLeague}>{pick.league}</Text>
-                <Text style={styles.cardDate}>{formatPickDate(pick.date)}</Text>
+                <Text style={styles.cardDate}>{formatPickDate(pick.scheduled_at, pick.date)}</Text>
               </View>
 
               {/* Matchup Row */}

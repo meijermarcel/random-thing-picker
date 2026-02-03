@@ -7,7 +7,7 @@ const LOCAL_API = 'http://localhost:8000';
 const PROD_API = 'https://rtp-api.onrender.com';
 
 // Toggle this for local development
-const USE_LOCAL_API = false;
+const USE_LOCAL_API = true;
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || (USE_LOCAL_API ? LOCAL_API : PROD_API);
 
@@ -200,6 +200,7 @@ export const apiService = {
     const params = new URLSearchParams({
       start_date: startDate,
       end_date: endDate,
+      tz: getTimezone(),
     });
     if (league && league !== 'all') {
       params.append('league', league);
