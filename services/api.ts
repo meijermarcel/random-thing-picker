@@ -236,4 +236,27 @@ export const apiService = {
     if (!response.ok) throw new Error('Failed to fix orphaned picks');
     return response.json();
   },
+
+  async regeneratePick(pickId: string): Promise<APIPick> {
+    const response = await fetch(`${API_BASE}/picks/${pickId}/regenerate`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Failed to regenerate pick' }));
+      throw new Error(error.detail || 'Failed to regenerate pick');
+    }
+    const data = await response.json();
+    return data.pick;
+  },
+
+  async regeneratePicksForDate(date: Date): Promise<{ regenerated: number }> {
+    const params = new URLSearchParams({
+      date: formatDate(date),
+    });
+    const response = await fetch(`${API_BASE}/admin/regenerate-picks?${params}`, {
+      method: 'POST',
+    });
+    if (!response.ok) throw new Error('Failed to regenerate picks');
+    return response.json();
+  },
 };
