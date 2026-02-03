@@ -309,12 +309,14 @@ export default function PerformanceScreen() {
           </Text>
           <Text style={styles.statLabel}>Win Rate</Text>
         </View>
-        <View style={styles.statBox}>
-          <Text style={[styles.statValue, { color: (summary?.units_profit || 0) >= 0 ? '#34C759' : '#FF3B30' }]}>
-            {(summary?.units_profit || 0) >= 0 ? '+' : ''}{(summary?.units_profit || 0).toFixed(1)}u
-          </Text>
-          <Text style={styles.statLabel}>Units</Text>
-        </View>
+        {pickType === 'ml' && (
+          <View style={styles.statBox}>
+            <Text style={[styles.statValue, { color: (summary?.units_profit || 0) >= 0 ? '#34C759' : '#FF3B30' }]}>
+              {(summary?.units_profit || 0) >= 0 ? '+' : ''}{(summary?.units_profit || 0).toFixed(1)}u
+            </Text>
+            <Text style={styles.statLabel}>Units</Text>
+          </View>
+        )}
       </View>
 
       {/* Admin Buttons */}
@@ -357,12 +359,20 @@ export default function PerformanceScreen() {
       {picks.length === 0 ? (
         <Text style={styles.emptyText}>No completed picks in this period</Text>
       ) : (
-        picks.map((pick) => (
+        (pickType === 'spread'
+          ? picks.filter(p => p.spread !== null && p.spread_result !== null)
+          : picks
+        ).map((pick) => (
           <View key={pick.id} style={styles.pickCard}>
             {/* Header with result badge and metadata */}
             <View style={styles.pickHeader}>
-              <View style={[styles.resultBadge, pick.result === 'win' ? styles.winBadge : styles.lossBadge]}>
-                <Text style={styles.resultText}>{pick.result === 'win' ? 'W' : 'L'}</Text>
+              <View style={[
+                styles.resultBadge,
+                (pickType === 'ml' ? pick.result : pick.spread_result) === 'win' ? styles.winBadge : styles.lossBadge
+              ]}>
+                <Text style={styles.resultText}>
+                  {(pickType === 'ml' ? pick.result : pick.spread_result) === 'win' ? 'W' : 'L'}
+                </Text>
               </View>
               <Text style={styles.pickLeague}>{pick.league}</Text>
               <Text style={styles.pickDate}>{formatPickDate(pick.date)}</Text>
@@ -429,6 +439,21 @@ export default function PerformanceScreen() {
                 </Text>
               )}
             </View>
+
+            {/* Spread info */}
+            {pickType === 'spread' && pick.spread !== null && (
+              <View style={styles.spreadInfoRow}>
+                <Text style={styles.spreadLabel}>
+                  Spread: {pick.spread > 0 ? '+' : ''}{pick.spread}
+                </Text>
+                <Text style={[
+                  styles.spreadResult,
+                  pick.spread_result === 'win' ? styles.spreadWin : styles.spreadLoss
+                ]}>
+                  {pick.spread_result === 'win' ? 'Covered' : 'Missed'}
+                </Text>
+              </View>
+            )}
           </View>
         ))
       )}
@@ -739,5 +764,28 @@ const styles = StyleSheet.create({
   },
   pickTypeTextActive: {
     color: '#FFF',
+  },
+  spreadInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 8,
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F2F2F7',
+  },
+  spreadLabel: {
+    fontSize: 14,
+    color: '#6B6B6B',
+  },
+  spreadResult: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  spreadWin: {
+    color: '#34C759',
+  },
+  spreadLoss: {
+    color: '#FF3B30',
   },
 });
