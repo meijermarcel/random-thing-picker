@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Game } from '../types/sports';
 
@@ -6,6 +6,10 @@ interface GameRowProps {
   game: Game;
   selected: boolean;
   onToggle: () => void;
+  pickId?: string;
+  gameStatus?: string;
+  isRefreshing?: boolean;
+  onRefresh?: () => void;
 }
 
 function formatGameTime(date: Date): string {
@@ -23,7 +27,7 @@ function formatGameTime(date: Date): string {
   return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${timeStr}`;
 }
 
-export function GameRow({ game, selected, onToggle }: GameRowProps) {
+export function GameRow({ game, selected, onToggle, pickId, gameStatus, isRefreshing, onRefresh }: GameRowProps) {
   return (
     <TouchableOpacity
       style={[styles.container, selected && styles.containerSelected]}
@@ -49,6 +53,19 @@ export function GameRow({ game, selected, onToggle }: GameRowProps) {
           {game.league} · {formatGameTime(game.startTime)}
         </Text>
       </View>
+      {gameStatus === 'scheduled' && pickId && onRefresh && (
+        <TouchableOpacity
+          style={styles.refreshButton}
+          onPress={onRefresh}
+          disabled={isRefreshing}
+        >
+          {isRefreshing ? (
+            <ActivityIndicator size="small" color="#007AFF" />
+          ) : (
+            <Ionicons name="refresh-outline" size={20} color="#007AFF" />
+          )}
+        </TouchableOpacity>
+      )}
     </TouchableOpacity>
   );
 }
@@ -60,6 +77,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     paddingHorizontal: 16,
     paddingVertical: 14,
+    position: 'relative',
+  },
+  refreshButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    padding: 8,
   },
   containerSelected: {
     backgroundColor: '#f0f7ff',
