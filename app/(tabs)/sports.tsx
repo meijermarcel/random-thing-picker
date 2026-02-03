@@ -294,13 +294,21 @@ export default function Sports() {
         <FlatList
           data={games}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <GameRow
-              game={item}
-              selected={selectedGames.has(item.id)}
-              onToggle={() => toggleGame(item)}
-            />
-          )}
+          renderItem={({ item }) => {
+            const apiGame = apiGames.get(item.id);
+            const pickId = apiGame?.pick?.id;
+            return (
+              <GameRow
+                game={item}
+                selected={selectedGames.has(item.id)}
+                onToggle={() => toggleGame(item)}
+                pickId={pickId}
+                gameStatus={apiGame?.game?.status}
+                isRefreshing={refreshingPick === pickId}
+                onRefresh={pickId ? () => handleRefreshPick(item.id, pickId) : undefined}
+              />
+            );
+          }}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
