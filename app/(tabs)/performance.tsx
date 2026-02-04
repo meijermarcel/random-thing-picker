@@ -309,6 +309,59 @@ export default function PerformanceScreen() {
         ))}
       </ScrollView>
 
+      {/* Confidence Breakdown */}
+      {(() => {
+        const confidenceStats = picks.reduce(
+          (acc, pick) => {
+            const conf = (pick.confidence || 'medium').toLowerCase();
+            const isWin = (pickType === 'ml' ? pick.result : pick.spread_result) === 'win';
+            if (pickType === 'spread' && pick.spread_result === null) return acc;
+            if (conf === 'high') {
+              acc.high.total++;
+              if (isWin) acc.high.wins++;
+            } else if (conf === 'low') {
+              acc.low.total++;
+              if (isWin) acc.low.wins++;
+            } else {
+              acc.medium.total++;
+              if (isWin) acc.medium.wins++;
+            }
+            return acc;
+          },
+          { high: { wins: 0, total: 0 }, medium: { wins: 0, total: 0 }, low: { wins: 0, total: 0 } }
+        );
+
+        const formatRecord = (stats: { wins: number; total: number }) => {
+          const losses = stats.total - stats.wins;
+          const pct = stats.total > 0 ? ((stats.wins / stats.total) * 100).toFixed(0) : '0';
+          return { record: `${stats.wins}-${losses}`, pct: `${pct}%` };
+        };
+
+        const high = formatRecord(confidenceStats.high);
+        const medium = formatRecord(confidenceStats.medium);
+        const low = formatRecord(confidenceStats.low);
+
+        return (
+          <View style={styles.confidenceContainer}>
+            <View style={styles.confidenceCard}>
+              <Text style={styles.confidenceLabel}>HIGH</Text>
+              <Text style={styles.confidenceRecord}>{high.record}</Text>
+              <Text style={styles.confidencePct}>({high.pct})</Text>
+            </View>
+            <View style={styles.confidenceCard}>
+              <Text style={styles.confidenceLabel}>MEDIUM</Text>
+              <Text style={styles.confidenceRecord}>{medium.record}</Text>
+              <Text style={styles.confidencePct}>({medium.pct})</Text>
+            </View>
+            <View style={styles.confidenceCard}>
+              <Text style={styles.confidenceLabel}>LOW</Text>
+              <Text style={styles.confidenceRecord}>{low.record}</Text>
+              <Text style={styles.confidencePct}>({low.pct})</Text>
+            </View>
+          </View>
+        );
+      })()}
+
       {/* Stats Header */}
       <View style={styles.statsContainer}>
         <View style={styles.statBox}>
@@ -541,6 +594,42 @@ const styles = StyleSheet.create({
   },
   leagueTextActive: {
     color: '#FFF',
+  },
+  confidenceContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginTop: 12,
+    gap: 8,
+  },
+  confidenceCard: {
+    flex: 1,
+    backgroundColor: '#FFF',
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  confidenceLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#8E8E93',
+    letterSpacing: 0.5,
+  },
+  confidenceRecord: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#000',
+    marginTop: 4,
+  },
+  confidencePct: {
+    fontSize: 13,
+    color: '#6B6B6B',
+    marginTop: 2,
   },
   statsContainer: {
     flexDirection: 'row',
