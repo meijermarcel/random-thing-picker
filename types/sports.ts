@@ -133,6 +133,9 @@ export interface PickAnalysis {
   awayScore: number;        // Analysis composite score (0-100)
   differential: number;
   projection: GameProjection; // Actual predicted scores
+  // Optimized spread pick (may differ from ML pick)
+  spreadPick?: 'home' | 'away';
+  spreadConfidence?: Confidence;
 }
 
 export type ParlayCategory = 'lock' | 'value' | 'sport' | 'longshot' | 'mega' | 'custom';

@@ -150,17 +150,58 @@ export default function BetSlip() {
                     </View>
                     <View style={styles.statDivider} />
                     <View style={styles.statItem}>
-                      <Text style={styles.statLabel}>{item.analysis?.pickType === 'draw' ? 'Prediction' : 'Margin'}</Text>
-                      <Text style={styles.statValue}>
-                        {item.analysis?.pickType === 'draw'
-                          ? 'Draw'
-                          : `${projection.projectedWinner === 'home' ? item.game.homeTeam : item.game.awayTeam} by ${Math.abs(projection.projectedMargin).toFixed(1)}`
-                        }
-                      </Text>
-                      {odds?.spread && item.analysis?.pickType !== 'draw' && (
-                        <Text style={styles.lineComparison}>
-                          Line: {odds.spread > 0 ? '+' : ''}{odds.spread}
-                        </Text>
+                      {item.analysis?.pickType === 'draw' ? (
+                        <>
+                          <Text style={styles.statLabel}>Prediction</Text>
+                          <Text style={styles.statValue}>Draw</Text>
+                        </>
+                      ) : odds?.spread ? (
+                        // Show optimized spread pick from backend (or calculate if not available)
+                        (() => {
+                          const homeSpread = odds.spread;
+                          const projectedMargin = projection.projectedMargin;
+                          const projectedWinner = projection.projectedWinner;
+
+                          // Use backend's optimized spread pick if available
+                          // Backend applies rules: always take underdog in hockey, be conservative on small spreads
+                          const spreadPickSide = item.analysis?.spreadPick || projectedWinner;
+                          const spreadConfidence = item.analysis?.spreadConfidence;
+
+                          // Determine which team and line to show
+                          const spreadPickTeam = spreadPickSide === 'home' ? item.game.homeTeam : item.game.awayTeam;
+                          const spreadPickLine = spreadPickSide === 'home' ? homeSpread : -homeSpread;
+
+                          // Calculate cover margin based on our projection
+                          const homeMargin = projectedWinner === 'home' ? projectedMargin : -projectedMargin;
+                          const homeCoverMargin = homeMargin + homeSpread;
+                          const coverMargin = spreadPickSide === 'home' ? homeCoverMargin : -homeCoverMargin;
+                          const covers = coverMargin > 0;
+
+                          return (
+                            <>
+                              <Text style={styles.statLabel}>
+                                Spread Pick{spreadConfidence ? ` (${spreadConfidence})` : ''}
+                              </Text>
+                              <Text style={[styles.statValue, styles.spreadPickValue]}>
+                                {spreadPickTeam} {spreadPickLine > 0 ? '+' : ''}{spreadPickLine.toFixed(1)}
+                              </Text>
+                              <Text style={[
+                                styles.lineComparison,
+                                covers ? styles.coversSpread : styles.doesNotCover
+                              ]}>
+                                {covers ? `Covers by ${Math.abs(coverMargin).toFixed(1)}` : 'Push'}
+                              </Text>
+                            </>
+                          );
+                        })()
+                      ) : (
+                        // No spread available, show margin
+                        <>
+                          <Text style={styles.statLabel}>Margin</Text>
+                          <Text style={styles.statValue}>
+                            {`${projection.projectedWinner === 'home' ? item.game.homeTeam : item.game.awayTeam} by ${Math.abs(projection.projectedMargin).toFixed(1)}`}
+                          </Text>
+                        </>
                       )}
                     </View>
                   </View>
@@ -460,6 +501,18 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#007AFF',
     marginTop: 2,
+  },
+  spreadPickValue: {
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  coversSpread: {
+    color: '#34C759',
+    fontWeight: '600',
+  },
+  doesNotCover: {
+    color: '#FF9500',
+    fontWeight: '600',
   },
   statDivider: {
     width: 1,

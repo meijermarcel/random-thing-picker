@@ -62,6 +62,9 @@ export function convertAPIPickToAnalysis(apiPick: APIPick): PickAnalysis {
       projectedMargin: apiProjection?.projected_margin ?? Math.round(Math.abs(homePoints - awayPoints) * 10) / 10,
       confidence: apiPick.confidence,
     },
+    // Optimized spread pick from backend (may differ from ML pick)
+    spreadPick: apiPick.analysis_factors.spread_pick || undefined,
+    spreadConfidence: apiPick.analysis_factors.spread_confidence || undefined,
   };
 }
 

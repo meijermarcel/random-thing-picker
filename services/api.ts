@@ -61,10 +61,12 @@ export interface APIPick {
       home_points: number;
       away_points: number;
       total_points: number;
-      projected_winner: string;
+      projected_winner: 'home' | 'away';
       projected_margin: number;
-      confidence: string;
+      confidence: 'low' | 'medium' | 'high';
     };
+    spread_pick?: 'home' | 'away';
+    spread_confidence?: 'low' | 'medium' | 'high';
   };
   algorithm_version: string;
   was_correct: boolean | null;
@@ -252,6 +254,7 @@ export const apiService = {
   async regeneratePicksForDate(date: Date): Promise<{ regenerated: number }> {
     const params = new URLSearchParams({
       date: formatDate(date),
+      tz: getTimezone(),
     });
     const response = await fetch(`${API_BASE}/admin/regenerate-picks?${params}`, {
       method: 'POST',
