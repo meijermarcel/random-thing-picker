@@ -62,8 +62,11 @@ interface PickDetail {
   confidence: string;
   odds: number | null;
   spread: number | null;
+  spread_pick: 'home' | 'away' | null;  // V7 optimized spread pick
+  spread_confidence: 'low' | 'medium' | 'high' | null;  // V7 spread confidence
   result: 'win' | 'loss';
   spread_result: 'win' | 'loss' | null;
+  spread_pick_result: 'win' | 'loss' | null;  // V7 spread pick result
   home_score: number | null;
   away_score: number | null;
   home_score_predicted: number | null;
@@ -313,9 +316,12 @@ export default function PerformanceScreen() {
       {(() => {
         const confidenceStats = picks.reduce(
           (acc, pick) => {
-            const conf = (pick.confidence || 'medium').toLowerCase();
-            const isWin = (pickType === 'ml' ? pick.result : pick.spread_result) === 'win';
-            if (pickType === 'spread' && pick.spread_result === null) return acc;
+            // Use spread_confidence for spread mode, otherwise use ML confidence
+            const conf = pickType === 'spread'
+              ? (pick.spread_confidence || 'low').toLowerCase()
+              : (pick.confidence || 'medium').toLowerCase();
+            const isWin = (pickType === 'ml' ? pick.result : pick.spread_pick_result) === 'win';
+            if (pickType === 'spread' && pick.spread_pick_result === null) return acc;
             if (conf === 'high') {
               acc.high.total++;
               if (isWin) acc.high.wins++;
@@ -427,10 +433,10 @@ export default function PerformanceScreen() {
         <Text style={styles.emptyText}>No completed picks in this period</Text>
       ) : (
         (pickType === 'spread'
-          ? picks.filter(p => p.spread !== null && p.spread_result !== null)
+          ? picks.filter(p => p.spread !== null && p.spread_pick !== null && p.spread_pick_result !== null)
           : picks
         ).map((pick) => {
-          const isWin = (pickType === 'ml' ? pick.result : pick.spread_result) === 'win';
+          const isWin = (pickType === 'ml' ? pick.result : pick.spread_pick_result) === 'win';
           const margin = pick.home_score !== null && pick.away_score !== null
             ? Math.abs(pick.home_score - pick.away_score)
             : null;
@@ -479,12 +485,31 @@ export default function PerformanceScreen() {
 
               {/* Our Pick Section */}
               <View style={styles.ourPickSection}>
-                <Text style={styles.ourPickLabel}>OUR PICK</Text>
+                <View style={styles.ourPickHeader}>
+                  <Text style={styles.ourPickLabel}>OUR PICK</Text>
+                  {(() => {
+                    const conf = pickType === 'spread'
+                      ? (pick.spread_confidence || 'low')
+                      : (pick.confidence || 'medium');
+                    const confColor = conf === 'high' ? '#34C759' : conf === 'medium' ? '#FF9500' : '#8E8E93';
+                    return (
+                      <View style={[styles.confidenceBadge, { backgroundColor: confColor }]}>
+                        <Text style={styles.confidenceBadgeText}>{conf.toUpperCase()}</Text>
+                      </View>
+                    );
+                  })()}
+                </View>
                 <View style={styles.pickBetRow}>
                   <Text style={styles.pickBetText}>
-                    {pick.is_draw_pick ? 'Draw' : pick.pick_abbr}
-                    {pickType === 'spread' && pick.spread !== null && (
-                      <Text style={styles.spreadText}> {pick.spread > 0 ? '+' : ''}{pick.spread}</Text>
+                    {pickType === 'spread' && pick.spread_pick
+                      ? (pick.spread_pick === 'home' ? pick.home_team_abbr : pick.away_team_abbr)
+                      : (pick.is_draw_pick ? 'Draw' : pick.pick_abbr)}
+                    {pickType === 'spread' && pick.spread !== null && pick.spread_pick && (
+                      <Text style={styles.spreadText}>
+                        {' '}{pick.spread_pick === 'home'
+                          ? (pick.spread > 0 ? `+${pick.spread}` : pick.spread.toString())
+                          : (pick.spread > 0 ? `-${pick.spread}` : `+${Math.abs(pick.spread)}`)}
+                      </Text>
                     )}
                     {pickType === 'ml' && pick.odds && !pick.is_draw_pick && (
                       <Text style={styles.oddsText}> ({pick.odds > 0 ? '+' : ''}{pick.odds})</Text>
@@ -781,12 +806,27 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#F2F2F7',
   },
+  ourPickHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
   ourPickLabel: {
     fontSize: 10,
     fontWeight: '700',
     color: '#8E8E93',
     letterSpacing: 1,
-    marginBottom: 4,
+  },
+  confidenceBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  confidenceBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFF',
   },
   pickBetRow: {
     flexDirection: 'row',
