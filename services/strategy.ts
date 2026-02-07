@@ -21,36 +21,22 @@ function calcReturn(odds: number, wager: number): number {
   return wager * (100 / Math.abs(odds));
 }
 
-/** Decide whether a pick should be a spread or ML bet */
+/** Decide whether a pick should be a spread or ML bet.
+ *  Uses the backend's optimized spread_pick when available (dedicated spread algorithm),
+ *  falls back to ML otherwise. */
 function decideBetType(pick: Pick): { type: 'straight_spread' | 'straight_ml'; label: string } {
   const analysis = pick.analysis;
   const odds = pick.game.odds;
 
-  if (!analysis || !odds || odds.spread == null) {
-    // No spread data, default to ML
-    const mlOdds = pick.pickType === 'home' ? odds?.homeMoneyline : odds?.awayMoneyline;
-    const oddsStr = mlOdds != null ? (mlOdds > 0 ? `+${mlOdds}` : `${mlOdds}`) : '';
-    return { type: 'straight_ml', label: `ML ${oddsStr}`.trim() };
-  }
-
-  const projectedMargin = analysis.projection.projectedWinner === 'home'
-    ? analysis.projection.projectedMargin
-    : -analysis.projection.projectedMargin;
-
-  // Spread from home perspective (negative = home favored)
-  const spread = odds.spread;
-  // Cover margin: how much the projected margin exceeds the spread
-  const coverMargin = projectedMargin + spread;
-
-  // If projected to cover by 2+ points, take the spread
-  if (Math.abs(coverMargin) > 2 && analysis.spreadPick) {
-    const spreadVal = analysis.spreadPick === 'home' ? spread : -spread;
+  // If the backend's spread algorithm produced a pick, use it
+  if (analysis?.spreadPick && odds?.spread != null) {
+    const spreadVal = analysis.spreadPick === 'home' ? odds.spread : -odds.spread;
     const spreadStr = spreadVal > 0 ? `+${spreadVal}` : `${spreadVal}`;
     return { type: 'straight_spread', label: `Spread ${spreadStr}` };
   }
 
-  // Otherwise take ML
-  const mlOdds = pick.pickType === 'home' ? odds.homeMoneyline : odds.awayMoneyline;
+  // No spread pick from backend, fall back to ML
+  const mlOdds = pick.pickType === 'home' ? odds?.homeMoneyline : odds?.awayMoneyline;
   const oddsStr = mlOdds != null ? (mlOdds > 0 ? `+${mlOdds}` : `${mlOdds}`) : '';
   return { type: 'straight_ml', label: `ML ${oddsStr}`.trim() };
 }
