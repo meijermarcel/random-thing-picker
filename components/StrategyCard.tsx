@@ -1,6 +1,14 @@
 import { View, Text, StyleSheet, Image } from 'react-native';
 import { StrategyBet, StrategyParlay } from '../types/sports';
 
+/** Format a dollar amount — whole dollars stay whole, otherwise show cents.
+ *  Negative values render as -$12 (not $-12). */
+export function fmtDollars(val: number): string {
+  if (val < 0) return `-$${Math.abs(Number.isInteger(val) ? val : parseFloat(val.toFixed(2)))}`;
+  if (Number.isInteger(val)) return `$${val}`;
+  return `$${val.toFixed(2)}`;
+}
+
 const CONFIDENCE_COLORS = {
   high: '#34C759',
   medium: '#FF9500',
@@ -16,6 +24,11 @@ function formatGameTime(date: Date): string {
   if (date.toDateString() === now.toDateString()) return `Today ${timeStr}`;
   if (date.toDateString() === tomorrow.toDateString()) return `Tomorrow ${timeStr}`;
   return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${timeStr}`;
+}
+
+function formatTeamName(name: string, record?: string): string {
+  if (record) return `${name} (${record})`;
+  return name;
 }
 
 interface StraightBetCardProps {
@@ -50,7 +63,7 @@ export function StraightBetCard({ bet }: StraightBetCardProps) {
             styles.teamName,
             pick.pickType === 'away' && styles.pickedTeamName,
           ]} numberOfLines={1}>
-            {pick.game.awayTeam}
+            {formatTeamName(pick.game.awayTeam, pick.game.awayRecord)}
           </Text>
         </View>
         <Text style={styles.atText}>@</Text>
@@ -64,7 +77,7 @@ export function StraightBetCard({ bet }: StraightBetCardProps) {
             styles.teamName,
             pick.pickType === 'home' && styles.pickedTeamName,
           ]} numberOfLines={1}>
-            {pick.game.homeTeam}
+            {formatTeamName(pick.game.homeTeam, pick.game.homeRecord)}
           </Text>
         </View>
       </View>
@@ -73,18 +86,21 @@ export function StraightBetCard({ bet }: StraightBetCardProps) {
         <View style={styles.betTypeBadge}>
           <Text style={styles.betTypeText}>{betLabel}</Text>
         </View>
-        <Text style={styles.wagerAmount}>${wager}</Text>
+        <Text style={styles.wagerReturn}>
+          {fmtDollars(wager)} <Text style={styles.arrow}>{'->'}</Text> <Text style={styles.returnGreen}>{fmtDollars(wager + potentialReturn)}</Text>
+        </Text>
       </View>
 
       {reason ? (
         <Text style={styles.reason} numberOfLines={2}>{reason}</Text>
       ) : null}
-
-      <Text style={styles.returnText}>
-        Potential return: ${Math.round(potentialReturn)}
-      </Text>
     </View>
   );
+}
+
+/** Format American odds as string */
+function formatOdds(odds: number): string {
+  return odds > 0 ? `+${odds}` : `${odds}`;
 }
 
 interface ParlayStrategyCardProps {
@@ -92,39 +108,37 @@ interface ParlayStrategyCardProps {
 }
 
 export function ParlayStrategyCard({ entry }: ParlayStrategyCardProps) {
-  const { parlay, wager } = entry;
-
-  const pickSummary = parlay.picks
-    .slice(0, 4)
-    .map(p => {
-      if (p.pickType === 'home') return p.game.homeTeam;
-      if (p.pickType === 'away') return p.game.awayTeam;
-      return p.label;
-    });
-  const moreCount = parlay.picks.length - 4;
+  const { title, icon, legs, wager, potentialReturn } = entry;
 
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <Text style={styles.parlayIcon}>{parlay.icon}</Text>
+        <Text style={styles.parlayIcon}>{icon}</Text>
         <View style={{ flex: 1 }}>
-          <Text style={styles.parlayTitle}>{parlay.title}</Text>
+          <Text style={styles.parlayTitle}>{title}</Text>
           <Text style={styles.parlaySubtitle}>
-            {parlay.picks.length} legs
+            {legs.length} legs
           </Text>
         </View>
-        <Text style={styles.wagerAmount}>${wager}</Text>
+        <Text style={styles.wagerReturn}>
+          {fmtDollars(wager)} <Text style={styles.arrow}>{'->'}</Text> <Text style={styles.returnGreen}>{fmtDollars(wager + potentialReturn)}</Text>
+        </Text>
       </View>
 
       <View style={styles.legsList}>
-        {pickSummary.map((name, i) => (
-          <Text key={i} style={styles.legItem}>
-            {name}{parlay.picks[i]?.analysis?.confidence === 'high' ? ' *' : ''}
-          </Text>
+        {legs.map((leg, i) => (
+          <View key={i} style={styles.legRow}>
+            <Text style={styles.legItem} numberOfLines={1}>
+              {leg.label}
+            </Text>
+            <Text style={[styles.legTypeBadgeText, leg.betType === 'spread' && styles.legTypeSpread]}>
+              {leg.betType === 'spread' ? 'SPR' : 'ML'}
+            </Text>
+            <Text style={[styles.legOdds, leg.odds > 0 ? styles.legOddsPlus : null]}>
+              {formatOdds(leg.odds)}
+            </Text>
+          </View>
         ))}
-        {moreCount > 0 && (
-          <Text style={styles.legMore}>+{moreCount} more</Text>
-        )}
       </View>
     </View>
   );
@@ -158,7 +172,7 @@ export function UnderdogCard({ bet }: UnderdogCardProps) {
             styles.teamName,
             pick.pickType === 'away' && styles.pickedTeamName,
           ]} numberOfLines={1}>
-            {pick.game.awayTeam}
+            {formatTeamName(pick.game.awayTeam, pick.game.awayRecord)}
           </Text>
         </View>
         <Text style={styles.atText}>@</Text>
@@ -172,15 +186,14 @@ export function UnderdogCard({ bet }: UnderdogCardProps) {
             styles.teamName,
             pick.pickType === 'home' && styles.pickedTeamName,
           ]} numberOfLines={1}>
-            {pick.game.homeTeam}
+            {formatTeamName(pick.game.homeTeam, pick.game.homeRecord)}
           </Text>
         </View>
       </View>
 
       <View style={styles.betRow}>
-        <Text style={styles.wagerAmount}>${wager}</Text>
-        <Text style={styles.returnText}>
-          Win: ${Math.round(potentialReturn)}
+        <Text style={styles.wagerReturn}>
+          {fmtDollars(wager)} <Text style={styles.arrow}>{'->'}</Text> <Text style={styles.returnGreen}>{fmtDollars(wager + potentialReturn)}</Text>
         </Text>
       </View>
 
@@ -205,6 +218,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   underdogCard: {
+    backgroundColor: '#FFF8F0',
     borderLeftWidth: 3,
     borderLeftColor: '#FF9500',
   },
@@ -294,10 +308,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#007AFF',
   },
-  wagerAmount: {
-    fontSize: 20,
-    fontWeight: '800',
+  wagerReturn: {
+    fontSize: 16,
+    fontWeight: '700',
     color: '#000',
+  },
+  arrow: {
+    color: '#aaa',
+    fontWeight: '400',
+  },
+  returnGreen: {
+    color: '#34C759',
   },
   reason: {
     fontSize: 13,
@@ -328,15 +349,34 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
   },
+  legRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
   legItem: {
+    flex: 1,
     fontSize: 14,
     color: '#444',
-    paddingVertical: 3,
   },
-  legMore: {
-    fontSize: 13,
+  legTypeBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
     color: '#888',
-    paddingVertical: 3,
+    marginRight: 6,
+  },
+  legTypeSpread: {
+    color: '#007AFF',
+  },
+  legOdds: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#333',
+    minWidth: 50,
+    textAlign: 'right',
+  },
+  legOddsPlus: {
+    color: '#34C759',
   },
   underdogOdds: {
     fontSize: 16,

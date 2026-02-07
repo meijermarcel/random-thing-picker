@@ -6,13 +6,15 @@ interface RiskModeSelectorProps {
   onChange: (mode: RiskMode) => void;
 }
 
-const MODES: { value: RiskMode; label: string; color: string }[] = [
-  { value: 'conservative', label: 'Conservative', color: '#34C759' },
-  { value: 'balanced', label: 'Balanced', color: '#FF9500' },
-  { value: 'aggressive', label: 'Aggressive', color: '#FF3B30' },
+const MODES: { value: RiskMode; label: string; color: string; description: string }[] = [
+  { value: 'conservative', label: 'Conservative', color: '#34C759', description: 'Mostly straight bets, top picks only' },
+  { value: 'balanced', label: 'Balanced', color: '#FF9500', description: 'Mix of straights and parlays' },
+  { value: 'aggressive', label: 'Aggressive', color: '#FF3B30', description: 'More parlays and underdog plays' },
 ];
 
 export function RiskModeSelector({ value, onChange }: RiskModeSelectorProps) {
+  const selected = MODES.find(m => m.value === value) ?? MODES[1]; // fallback to balanced
+
   return (
     <View style={styles.container}>
       <Text style={styles.label}>Risk Mode</Text>
@@ -32,6 +34,7 @@ export function RiskModeSelector({ value, onChange }: RiskModeSelectorProps) {
           </TouchableOpacity>
         ))}
       </View>
+      <Text style={styles.description}>{selected.description}</Text>
     </View>
   );
 }
@@ -65,5 +68,11 @@ const styles = StyleSheet.create({
   },
   pillTextSelected: {
     color: '#fff',
+  },
+  description: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 6,
+    textAlign: 'center',
   },
 });

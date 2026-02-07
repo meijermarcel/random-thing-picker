@@ -30,6 +30,7 @@ export interface APIGame {
       over_under: number | null;
       home_moneyline: number | null;
       away_moneyline: number | null;
+      draw_moneyline: number | null;
     } | null;
   } | null;
 }
@@ -244,6 +245,16 @@ export async function createCustomParlay(
   if (!response.ok) {
     throw new Error(`Failed to create custom parlay: ${response.status}`);
   }
+  return response.json();
+}
+
+/** Force-refresh game odds from ESPN for a given date */
+export async function refreshOdds(date: Date): Promise<{ games_updated: number }> {
+  const params = new URLSearchParams({ date: formatDate(date) });
+  const url = `${API_BASE}/games/refresh?${params}`;
+  console.log(`[API] refreshOdds: ${url}`);
+  const response = await fetch(url, { method: 'POST' });
+  if (!response.ok) throw new Error(`Failed to refresh odds: ${response.status}`);
   return response.json();
 }
 

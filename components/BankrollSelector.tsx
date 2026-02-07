@@ -6,7 +6,7 @@ interface BankrollSelectorProps {
   onChange: (value: number) => void;
 }
 
-const TIERS = [25, 50, 100, 200];
+const TIERS = [10, 15, 20, 25, 50];
 
 export function BankrollSelector({ value, onChange }: BankrollSelectorProps) {
   const [showCustom, setShowCustom] = useState(false);

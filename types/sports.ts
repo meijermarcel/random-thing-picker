@@ -4,6 +4,7 @@ export interface GameOdds {
   overUnder?: number;     // Total points line
   homeMoneyline?: number; // Home team ML odds
   awayMoneyline?: number; // Away team ML odds
+  drawMoneyline?: number; // Draw ML odds (soccer 3-way)
   provider?: string;      // Odds provider name
 }
 
@@ -163,13 +164,24 @@ export interface StrategyBet {
   potentialReturn: number;
 }
 
+export interface StrategyParlayLeg {
+  pick: Pick;
+  betType: 'ml' | 'spread';
+  odds: number;        // American odds for this leg
+  label: string;       // e.g. "Kansas -7.5" or "Duke ML"
+}
+
 export interface StrategyParlay {
-  parlay: ParlayRecommendation;
+  title: string;
+  icon: string;
+  legs: StrategyParlayLeg[];
   wager: number;
+  potentialReturn: number;
 }
 
 export interface DailyStrategy {
   bankroll: number;
+  dailyBudget: number;
   riskMode: RiskMode;
   straightBets: StrategyBet[];
   parlays: StrategyParlay[];

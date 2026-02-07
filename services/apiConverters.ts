@@ -24,6 +24,7 @@ export function convertAPIGameToGame(apiGame: APIGameWithPick): Game {
       overUnder: game.espn_data.odds.over_under || undefined,
       homeMoneyline: game.espn_data.odds.home_moneyline || undefined,
       awayMoneyline: game.espn_data.odds.away_moneyline || undefined,
+      drawMoneyline: game.espn_data.odds.draw_moneyline || undefined,
     } : undefined,
   };
 }
