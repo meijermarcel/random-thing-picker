@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, SafeAreaView, FlatList, ActivityIndicator, Refr
 import { SportFilter } from '../../components/SportFilter';
 import { DateSelector } from '../../components/DateSelector';
 import { SpreadPickCard } from '../../components/SpreadPickCard';
-import { fetchGames as fetchGamesFromAPI, APIGameWithPick } from '../../services/api';
+import { fetchGames as fetchGamesFromAPI, APIGameWithPick, invalidateCache } from '../../services/api';
 import { SportFilter as SportFilterType } from '../../types/sports';
 
 export default function Spread() {
@@ -34,6 +34,7 @@ export default function Spread() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
+    invalidateCache('picks');
     await loadGames();
     setRefreshing(false);
   };

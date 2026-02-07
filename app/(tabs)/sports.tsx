@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, SafeAreaView, FlatList, ActivityIndicator, Refr
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Game, Pick, SportFilter as SportFilterType, PickMode, PickType, PickAnalysis } from '../../types/sports';
-import { fetchGames as fetchGamesFromAPI, APIGameWithPick, apiService } from '../../services/api';
+import { fetchGames as fetchGamesFromAPI, APIGameWithPick, apiService, invalidateCache } from '../../services/api';
 import { convertAPIGameToGame, convertAPIPickToAnalysis } from '../../services/apiConverters';
 import { SportFilter } from '../../components/SportFilter';
 import { DateSelector } from '../../components/DateSelector';
@@ -68,6 +68,7 @@ export default function Sports() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
+    invalidateCache('picks');
     await loadGames();
     setRefreshing(false);
   };
@@ -96,6 +97,7 @@ export default function Sports() {
     setRefreshingAll(true);
     try {
       const result = await apiService.regeneratePicksForDate(selectedDate);
+      invalidateCache(); // Clear all caches so other tabs see new picks too
       Alert.alert('Success', `Refreshed ${result.regenerated} picks`);
       await loadGames(); // Reload to show updated picks
     } catch (error) {

@@ -5,7 +5,7 @@ import { DateSelector } from '../../components/DateSelector';
 import { BankrollSelector } from '../../components/BankrollSelector';
 import { RiskModeSelector } from '../../components/RiskModeSelector';
 import { StraightBetCard, ParlayStrategyCard, UnderdogCard } from '../../components/StrategyCard';
-import { fetchGames as fetchGamesFromAPI, fetchParlays as fetchParlaysFromAPI } from '../../services/api';
+import { fetchGames as fetchGamesFromAPI, fetchParlays as fetchParlaysFromAPI, invalidateCache } from '../../services/api';
 import { convertAPIGameWithPickToPick, convertAPIParlayToRecommendation } from '../../services/apiConverters';
 import { generateStrategy } from '../../services/strategy';
 import { Pick, ParlayRecommendation, RiskMode, DailyStrategy } from '../../types/sports';
@@ -91,6 +91,7 @@ export default function Strategy() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
+    invalidateCache();
     await loadData();
     setRefreshing(false);
   };

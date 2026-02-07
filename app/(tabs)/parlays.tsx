@@ -1,23 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, RefreshControl, TouchableOpacity, TextInput } from 'react-native';
 import { router } from 'expo-router';
-import { Game, ParlayRecommendation } from '../../types/sports';
-import { fetchParlays as fetchParlaysFromAPI, createCustomParlay as createCustomParlayFromAPI, APIParlay } from '../../services/api';
+import { ParlayRecommendation } from '../../types/sports';
+import { fetchParlays as fetchParlaysFromAPI, createCustomParlay as createCustomParlayFromAPI, APIParlay, invalidateCache } from '../../services/api';
 import { convertAPIParlayToRecommendation } from '../../services/apiConverters';
 import { DateSelector } from '../../components/DateSelector';
 import { ParlayCard } from '../../components/ParlayCard';
-
-// Helper to get date string for comparison
-const getDateKey = (date: Date) => date.toISOString().split('T')[0];
-
-// Module-level cache that persists across component remounts
-interface ParlayCache {
-  dateKey: string;
-  parlays: ParlayRecommendation[];
-  gameCount: number;
-  availableLeagues: string[];
-}
-let parlayCache: ParlayCache | null = null;
 
 export default function Parlays() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -29,8 +17,7 @@ export default function Parlays() {
   const [selectedLeagues, setSelectedLeagues] = useState<Set<string>>(new Set());
   const [generatingCustom, setGeneratingCustom] = useState(false);
 
-  // Get available leagues from cached parlays
-  const availableLeagues = parlayCache?.availableLeagues ?? [];
+  const [availableLeagues, setAvailableLeagues] = useState<string[]>([]);
 
   // Get game count for selected leagues (approximation based on total)
   const filteredGameCount = selectedLeagues.size === 0
@@ -54,17 +41,8 @@ export default function Parlays() {
   };
 
   const loadParlays = useCallback(async (forceRefresh = false) => {
-    const dateKey = getDateKey(selectedDate);
-
-    // Check module-level cache first (unless force refresh)
-    if (!forceRefresh && parlayCache && parlayCache.dateKey === dateKey) {
-      setParlays(parlayCache.parlays);
-      setGameCount(parlayCache.gameCount);
-      return;
-    }
-
-    // Fetch parlays from API (API handles game fetching and analysis)
-    const apiParlays = await fetchParlaysFromAPI(selectedDate);
+    // Fetch parlays from API (caching handled by api.ts)
+    const apiParlays = await fetchParlaysFromAPI(selectedDate, undefined, forceRefresh);
 
     // Convert API parlays to frontend format
     const recommendations = apiParlays.map(convertAPIParlayToRecommendation);
@@ -73,13 +51,8 @@ export default function Parlays() {
     // Calculate game count and available leagues from parlay picks
     const allPicks = recommendations.flatMap(p => p.picks);
     const uniqueGames = new Map(allPicks.map(p => [p.game.id, p.game]));
-    const gamesCount = uniqueGames.size;
-    const leagues = Array.from(new Set(allPicks.map(p => p.game.leagueAbbr)));
-
-    setGameCount(gamesCount);
-
-    // Update module-level cache
-    parlayCache = { dateKey, parlays: recommendations, gameCount: gamesCount, availableLeagues: leagues };
+    setGameCount(uniqueGames.size);
+    setAvailableLeagues(Array.from(new Set(allPicks.map(p => p.game.leagueAbbr))));
   }, [selectedDate]);
 
   const handleGenerateCustom = async () => {
@@ -106,16 +79,13 @@ export default function Parlays() {
   };
 
   useEffect(() => {
-    const dateKey = getDateKey(selectedDate);
-    // Only show loading if we don't have cached data for this date
-    if (!parlayCache || parlayCache.dateKey !== dateKey) {
-      setLoading(true);
-    }
+    setLoading(true);
     loadParlays().finally(() => setLoading(false));
   }, [loadParlays]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
+    invalidateCache('parlays');
     await loadParlays(true);
     setRefreshing(false);
   };
@@ -186,9 +156,9 @@ export default function Parlays() {
               </TouchableOpacity>
               {availableLeagues.map(league => {
                 // Estimate count per league based on parlay picks
-                const pickCount = parlayCache?.parlays
+                const pickCount = parlays
                   .flatMap(p => p.picks)
-                  .filter(p => p.game.leagueAbbr === league).length ?? 0;
+                  .filter(p => p.game.leagueAbbr === league).length;
                 const isSelected = selectedLeagues.has(league);
                 return (
                   <TouchableOpacity
