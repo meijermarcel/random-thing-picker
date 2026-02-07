@@ -101,6 +101,9 @@ export default function Strategy() {
     strategy.underdogFlyers.length > 0
   );
 
+  const allLowConfidence = strategy && picks.length > 0 &&
+    picks.every(p => p.analysis?.confidence === 'low');
+
   return (
     <SafeAreaView style={styles.container}>
       <DateSelector selectedDate={selectedDate} onDateChange={setSelectedDate} />
@@ -111,6 +114,13 @@ export default function Strategy() {
         <View style={styles.center}>
           <ActivityIndicator size="large" color="#007AFF" />
           <Text style={styles.loadingText}>Building strategy...</Text>
+        </View>
+      ) : allLowConfidence && riskMode === 'conservative' ? (
+        <View style={styles.center}>
+          <Text style={styles.warningText}>No strong picks today</Text>
+          <Text style={styles.warningSubtext}>
+            All picks are low confidence. Consider sitting this one out or switching to Balanced mode.
+          </Text>
         </View>
       ) : !hasBets ? (
         <View style={styles.center}>
@@ -223,6 +233,18 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     color: '#888',
+  },
+  warningText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FF9500',
+    marginBottom: 8,
+  },
+  warningSubtext: {
+    fontSize: 14,
+    color: '#888',
+    textAlign: 'center',
+    paddingHorizontal: 32,
   },
   scrollView: {
     flex: 1,
