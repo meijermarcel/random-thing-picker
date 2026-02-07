@@ -148,3 +148,32 @@ export interface ParlayRecommendation {
   picks: Pick[];
   icon: string;
 }
+
+// Strategy tab types
+export type RiskMode = 'conservative' | 'balanced' | 'aggressive';
+
+export type StrategyBetType = 'straight_spread' | 'straight_ml' | 'parlay' | 'underdog_flyer';
+
+export interface StrategyBet {
+  type: StrategyBetType;
+  wager: number;
+  pick: Pick;
+  betLabel: string;
+  reason: string;
+  potentialReturn: number;
+}
+
+export interface StrategyParlay {
+  parlay: ParlayRecommendation;
+  wager: number;
+}
+
+export interface DailyStrategy {
+  bankroll: number;
+  riskMode: RiskMode;
+  straightBets: StrategyBet[];
+  parlays: StrategyParlay[];
+  underdogFlyers: StrategyBet[];
+  totalWagered: number;
+  potentialReturnRange: { low: number; expected: number; high: number };
+}
