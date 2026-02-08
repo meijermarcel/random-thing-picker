@@ -103,13 +103,14 @@ function decideParlayLeg(pick: Pick): StrategyParlayLeg {
   // If ML odds are too juiced, use spread instead
   if (mlOdds < ML_JUICE_THRESHOLD && odds?.spread != null) {
     const spreadSide = pick.analysis?.spreadPick ?? pick.pickType;
+    const spreadTeam = spreadSide === 'home' ? pick.game.homeTeam : pick.game.awayTeam;
     const spreadVal = spreadSide === 'home' ? odds.spread : -odds.spread;
     const spreadStr = spreadVal > 0 ? `+${spreadVal}` : `${spreadVal}`;
     return {
       pick,
       betType: 'spread',
       odds: -110,
-      label: `${team} ${spreadStr}`,
+      label: `${spreadTeam} ${spreadStr}`,
     };
   }
 

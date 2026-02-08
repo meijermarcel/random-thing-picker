@@ -20,7 +20,7 @@ const STORAGE_KEYS = {
   sports: 'strategy_sports',
 };
 
-const DEFAULT_BANKROLL = 25;
+const DEFAULT_BANKROLL = 20;
 const DEFAULT_RISK_MODE: RiskMode = 'balanced';
 
 export default function Strategy() {

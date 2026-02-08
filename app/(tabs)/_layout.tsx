@@ -51,10 +51,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="parlays"
         options={{
-          title: 'Parlays',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="layers" size={size} color={color} />
-          ),
+          href: null,
         }}
       />
       <Tabs.Screen
@@ -64,6 +61,12 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="bulb-outline" size={size} color={color} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="bankroll"
+        options={{
+          href: null,
         }}
       />
       <Tabs.Screen
