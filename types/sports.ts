@@ -162,6 +162,7 @@ export interface StrategyBet {
   betLabel: string;
   reason: string;
   potentialReturn: number;
+  spreadPickSide?: 'home' | 'away';
 }
 
 export interface StrategyParlayLeg {

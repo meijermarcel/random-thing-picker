@@ -57,7 +57,7 @@ function impliedProb(odds: number): number {
 /** Decide whether a pick should be a spread or ML bet for straights.
  *  Uses the backend's optimized spread_pick when available.
  *  Soccer always uses 3-way ML (no spreads). */
-function decideBetType(pick: Pick): { type: 'straight_spread' | 'straight_ml'; label: string } {
+function decideBetType(pick: Pick): { type: 'straight_spread' | 'straight_ml'; label: string; spreadPickSide?: 'home' | 'away' } {
   const analysis = pick.analysis;
   const odds = pick.game.odds;
 
@@ -73,9 +73,10 @@ function decideBetType(pick: Pick): { type: 'straight_spread' | 'straight_ml'; l
   }
 
   if (analysis?.spreadPick && odds?.spread != null) {
+    const spreadTeam = analysis.spreadPick === 'home' ? pick.game.homeTeam : pick.game.awayTeam;
     const spreadVal = analysis.spreadPick === 'home' ? odds.spread : -odds.spread;
     const spreadStr = spreadVal > 0 ? `+${spreadVal}` : `${spreadVal}`;
-    return { type: 'straight_spread', label: `Spread ${spreadStr}` };
+    return { type: 'straight_spread', label: `${spreadTeam} ${spreadStr}`, spreadPickSide: analysis.spreadPick };
   }
 
   const mlOdds = pick.pickType === 'home' ? odds?.homeMoneyline : odds?.awayMoneyline;
@@ -360,7 +361,7 @@ export function generateStrategy(
 
   // Build straight bets
   const straightBets: StrategyBet[] = straightPicks.map((pick, i) => {
-    const { type, label } = decideBetType(pick);
+    const { type, label, spreadPickSide } = decideBetType(pick);
     const odds = type === 'straight_spread' ? -110 : getPickOdds(pick);
     return {
       type,
@@ -369,6 +370,7 @@ export function generateStrategy(
       betLabel: label,
       reason: pick.analysis!.reasoning[0] || '',
       potentialReturn: calcReturn(odds, straightAmounts[i]),
+      spreadPickSide,
     };
   });
 
@@ -385,11 +387,12 @@ export function generateStrategy(
   const underdogFlyers: StrategyBet[] = underdogPicks.map((pick, i) => {
     const odds = getPickOdds(pick);
     const oddsStr = odds > 0 ? `+${odds}` : `${odds}`;
+    const betPrefix = pick.pickType === 'draw' ? 'Draw' : 'ML';
     return {
       type: 'underdog_flyer' as const,
       wager: underdogAmounts[i],
       pick,
-      betLabel: `ML ${oddsStr}`,
+      betLabel: `${betPrefix} ${oddsStr}`,
       reason: pick.analysis!.reasoning[0] || '',
       potentialReturn: calcReturn(odds, underdogAmounts[i]),
     };

@@ -36,9 +36,12 @@ interface StraightBetCardProps {
 }
 
 export function StraightBetCard({ bet }: StraightBetCardProps) {
-  const { pick, betLabel, reason, wager, potentialReturn } = bet;
+  const { pick, betLabel, reason, wager, potentialReturn, spreadPickSide } = bet;
   const confidence = pick.analysis?.confidence ?? 'medium';
   const confidenceColor = CONFIDENCE_COLORS[confidence];
+
+  // For spread bets, highlight the spread pick team; for ML bets, highlight the ML pick team
+  const highlightSide = spreadPickSide ?? pick.pickType;
 
   return (
     <View style={styles.card}>
@@ -61,7 +64,7 @@ export function StraightBetCard({ bet }: StraightBetCardProps) {
           )}
           <Text style={[
             styles.teamName,
-            pick.pickType === 'away' && styles.pickedTeamName,
+            highlightSide === 'away' && styles.pickedTeamName,
           ]} numberOfLines={1}>
             {formatTeamName(pick.game.awayTeam, pick.game.awayRecord)}
           </Text>
@@ -75,7 +78,7 @@ export function StraightBetCard({ bet }: StraightBetCardProps) {
           )}
           <Text style={[
             styles.teamName,
-            pick.pickType === 'home' && styles.pickedTeamName,
+            highlightSide === 'home' && styles.pickedTeamName,
           ]} numberOfLines={1}>
             {formatTeamName(pick.game.homeTeam, pick.game.homeRecord)}
           </Text>
@@ -175,7 +178,13 @@ export function UnderdogCard({ bet }: UnderdogCardProps) {
             {formatTeamName(pick.game.awayTeam, pick.game.awayRecord)}
           </Text>
         </View>
-        <Text style={styles.atText}>@</Text>
+        {pick.pickType === 'draw' ? (
+          <View style={styles.drawBadge}>
+            <Text style={styles.drawBadgeText}>DRAW</Text>
+          </View>
+        ) : (
+          <Text style={styles.atText}>@</Text>
+        )}
         <View style={styles.teamInfo}>
           {pick.game.homeLogo ? (
             <Image source={{ uri: pick.game.homeLogo }} style={styles.teamLogo} />
@@ -382,5 +391,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     color: '#FF9500',
+  },
+  drawBadge: {
+    backgroundColor: '#FF9500',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+    marginHorizontal: 6,
+  },
+  drawBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#fff',
   },
 });
