@@ -148,13 +148,21 @@ function isValueUnderdog(pick: Pick): boolean {
   return odds > 150 && (confidence === 'medium' || confidence === 'high');
 }
 
+/** Check if a pick would be a juiced ML bet with no value.
+ *  Skip if ML odds are worse than -130 and there's no spread to fall back on. */
+function isJuicedNoSpread(pick: Pick): boolean {
+  const mlOdds = getPickOdds(pick);
+  const hasSpread = pick.analysis?.spreadPick != null && pick.game.odds?.spread != null;
+  return mlOdds < -130 && !hasSpread;
+}
+
 /** Select and rank straight bets from picks — includes value underdogs with higher weighting */
 function selectStraightBets(picks: Pick[], riskMode: RiskMode, maxBets: number): Pick[] {
   const minConfidence = riskMode === 'aggressive' ? 'low' : 'medium';
   const confidenceOrder = { high: 3, medium: 2, low: 1 };
 
   const standard = picks
-    .filter(p => p.analysis && !isUnderdogFlyer(p))
+    .filter(p => p.analysis && !isUnderdogFlyer(p) && !isJuicedNoSpread(p))
     .filter(p => confidenceOrder[p.analysis!.confidence] >= confidenceOrder[minConfidence]);
 
   return standard
@@ -181,7 +189,7 @@ function buildParlays(picks: Pick[], riskMode: RiskMode): { title: string; icon:
   const confidenceOrder = { high: 3, medium: 2, low: 1 };
 
   const eligible = picks
-    .filter(p => p.analysis)
+    .filter(p => p.analysis && !isJuicedNoSpread(p))
     .sort((a, b) => {
       const confDiff = confidenceOrder[b.analysis!.confidence] - confidenceOrder[a.analysis!.confidence];
       if (confDiff !== 0) return confDiff;

@@ -161,6 +161,16 @@ export default function Strategy() {
       <BankrollSelector value={bankroll} onChange={handleBankrollChange} />
       <RiskModeSelector value={riskMode} onChange={handleRiskModeChange} />
 
+      <TouchableOpacity
+        style={styles.refreshButton}
+        onPress={handleRefresh}
+        disabled={refreshing}
+      >
+        <Text style={styles.refreshButtonText}>
+          {refreshing ? 'Refreshing...' : 'Refresh Odds'}
+        </Text>
+      </TouchableOpacity>
+
       {availableSports.length > 1 && (
         <View style={styles.sportsRow}>
           <Text style={styles.sportsLabel}>Sports</Text>
@@ -311,6 +321,20 @@ const styles = StyleSheet.create({
     color: '#888',
     textAlign: 'center',
     paddingHorizontal: 32,
+  },
+  refreshButton: {
+    alignSelf: 'flex-end',
+    marginRight: 16,
+    marginBottom: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: '#f0f0f0',
+  },
+  refreshButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#007AFF',
   },
   sportsRow: {
     paddingHorizontal: 16,
