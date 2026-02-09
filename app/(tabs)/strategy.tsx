@@ -67,9 +67,11 @@ export default function Strategy() {
   const loadData = useCallback(async () => {
     const gamesData = await fetchGamesFromAPI(selectedDate);
 
+    const now = new Date();
     const convertedPicks = gamesData
       .map(convertAPIGameWithPickToPick)
-      .filter((p): p is Pick => p !== null);
+      .filter((p): p is Pick => p !== null)
+      .filter(p => p.game.startTime > now);
 
     setAllPicks(convertedPicks);
   }, [selectedDate]);
